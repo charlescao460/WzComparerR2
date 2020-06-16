@@ -24,6 +24,8 @@ namespace WzComparerR2.MapRender.Patches2
 
         public LifeInfo LifeInfo { get; set; }
 
+        private static int _spawnCounter;
+
         public static LifeItem LoadFromNode(Wz_Node node)
         {
             var item = new LifeItem()
@@ -33,7 +35,7 @@ namespace WzComparerR2.MapRender.Patches2
                 X = node.Nodes["x"].GetValueEx(0),
                 Y = node.Nodes["y"].GetValueEx(0),
                 MobTime = node.Nodes["mobTime"].GetValueEx(0),
-                Flip = node.Nodes["f"].GetValueEx(false),
+                Flip = _spawnCounter++ % 2 == 0,
                 Hide = node.Nodes["hide"].GetValueEx(false),
                 Fh = node.Nodes["fh"].GetValueEx(0),
                 Cy = node.Nodes["cy"].GetValueEx(0),

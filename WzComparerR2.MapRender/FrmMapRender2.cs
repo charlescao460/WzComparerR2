@@ -107,6 +107,8 @@ namespace WzComparerR2.MapRender
 
         public StringLinker StringLinker { get; set; }
 
+        public GraphicsDeviceManager GraphicsManager => graphics;
+
         GraphicsDeviceManager graphics;
         Wz_Image mapImg;
         RenderEnv renderEnv;
@@ -122,7 +124,7 @@ namespace WzComparerR2.MapRender
 
         List<ItemRect> allItems = new List<ItemRect>();
         List<KeyValuePair<SceneItem, MeshItem>> drawableItemsCache = new List<KeyValuePair<SceneItem, MeshItem>>();
-        MapRenderUIRoot ui;
+        internal MapRenderUIRoot ui;
         Tooltip2 tooltip;
         WcR2Engine engine;
         Music bgm;

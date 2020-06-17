@@ -111,7 +111,7 @@ namespace WzComparerR2.MapRender
 
         GraphicsDeviceManager graphics;
         Wz_Image mapImg;
-        RenderEnv renderEnv;
+        internal RenderEnv renderEnv;
         MapData mapData;
         ResourceLoader resLoader;
         MeshBatcher batcher;
@@ -126,7 +126,7 @@ namespace WzComparerR2.MapRender
         List<KeyValuePair<SceneItem, MeshItem>> drawableItemsCache = new List<KeyValuePair<SceneItem, MeshItem>>();
         internal MapRenderUIRoot ui;
         Tooltip2 tooltip;
-        WcR2Engine engine;
+        internal WcR2Engine engine;
         Music bgm;
 
         CoroutineManager cm;
@@ -651,7 +651,7 @@ namespace WzComparerR2.MapRender
             this.renderEnv.Camera.UseWorldRect = true;
 
             var target2d = new RenderTarget2D(this.GraphicsDevice, width, height, false, SurfaceFormat.Bgra32, DepthFormat.None);
-
+            
             //计算一组截图区
             int horizonBlock = (int)Math.Ceiling(1.0 * oldRect.Width / width);
             int verticalBlock = (int)Math.Ceiling(1.0 * oldRect.Height / height);

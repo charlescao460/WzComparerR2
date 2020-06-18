@@ -145,7 +145,10 @@ namespace WzComparerR2.MapRender
                             sourceRectangle: frame.AtlasRect,
                             color: new Color(Color.White, frame.A0),
                             origin: origin,
-                            effects: eff
+                            effects: eff,
+                            scale:1.0f,
+                            rotation:0,
+                            layerDepth:0
                             );
                     }
                 }
@@ -160,7 +163,10 @@ namespace WzComparerR2.MapRender
                         sourceRectangle: frame.AtlasRect,
                         color: new Color(Color.White, frame.A0),
                         origin: origin,
-                        effects: eff
+                        effects: eff,
+                        scale: 1.0f,
+                        rotation: 0,
+                        layerDepth: 0
                         );
                 }
             }

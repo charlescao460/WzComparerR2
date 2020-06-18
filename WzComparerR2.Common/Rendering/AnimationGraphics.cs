@@ -43,8 +43,6 @@ namespace WzComparerR2.Rendering
                 sprite.Draw(frame.Texture,
                     position: Vector2.Zero,
                     sourceRectangle: frame.AtlasRect,
-                    origin: frame.Origin.ToVector2(),
-                    rotation: 0,
                     color: new Color(Color.White, frame.A0));
                 sprite.End();
             }

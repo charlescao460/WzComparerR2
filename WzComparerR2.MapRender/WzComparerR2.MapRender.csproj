@@ -69,7 +69,7 @@
     <Reference Include="SharpDX.RawInput, Version=2.5.1.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\References\SharpDX.RawInput.dll</HintPath>
-      <Private>False</Private>
+      <Private>True</Private>
     </Reference>
     <Reference Include="spine-monogame">
       <HintPath>..\References\spine-monogame.dll</HintPath>

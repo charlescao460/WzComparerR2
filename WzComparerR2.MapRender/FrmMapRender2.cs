@@ -120,12 +120,12 @@ namespace WzComparerR2.MapRender
         bool prepareCapture;
         Task captureTask;
         Resolution resolution;
-        float opacity;
+        internal float opacity;
 
         List<ItemRect> allItems = new List<ItemRect>();
         List<KeyValuePair<SceneItem, MeshItem>> drawableItemsCache = new List<KeyValuePair<SceneItem, MeshItem>>();
         internal MapRenderUIRoot ui;
-        Tooltip2 tooltip;
+        internal Tooltip2 tooltip;
         internal WcR2Engine engine;
         Music bgm;
 

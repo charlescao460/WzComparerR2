@@ -199,7 +199,7 @@ namespace WzComparerR2.MapRender
             }
         }
 
-        private void DrawScene(GameTime gameTime)
+        internal void DrawScene(GameTime gameTime)
         {
             if (this.mapData == null)
             {
@@ -246,7 +246,7 @@ namespace WzComparerR2.MapRender
             this.batcher.End();
         }
 
-        private void DrawTooltipItems(GameTime gameTime)
+        internal void DrawTooltipItems(GameTime gameTime)
         {
             var pos = renderEnv.Camera.CameraToWorld(renderEnv.Input.MousePosition);
             var origin = renderEnv.Camera.Origin.ToPoint();

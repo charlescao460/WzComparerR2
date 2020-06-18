@@ -82,7 +82,7 @@ namespace WzComparerR2.Animation
         /// <summary>
         /// 用于帧动画的状态机数据。
         /// </summary>
-        private class FrameStateMachineData : IStateMachineAnimationData
+        public class FrameStateMachineData : IStateMachineAnimationData
         {
             public FrameStateMachineData(IDictionary<string, RepeatableFrameAnimationData> data)
             {
@@ -96,6 +96,10 @@ namespace WzComparerR2.Animation
             private RepeatableFrameAnimator selectedData;
 
             public ReadOnlyCollection<string> States { get; private set; }
+
+            public IDictionary<string, RepeatableFrameAnimationData> Data => data;
+
+            public RepeatableFrameAnimator FrameAnimator => selectedData;
 
             public int SelectedStateIndex
             {

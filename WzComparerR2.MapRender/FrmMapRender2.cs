@@ -112,7 +112,7 @@ namespace WzComparerR2.MapRender
         GraphicsDeviceManager graphics;
         Wz_Image mapImg;
         internal RenderEnv renderEnv;
-        MapData mapData;
+        internal MapData mapData;
         ResourceLoader resLoader;
         MeshBatcher batcher;
         PatchVisibility patchVisibility;

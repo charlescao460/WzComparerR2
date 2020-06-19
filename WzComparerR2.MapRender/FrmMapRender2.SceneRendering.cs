@@ -15,6 +15,7 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2
     {
+        protected int AttackPercentage = 15;
         private static Random _randomGenerator = new Random();
         private List<Point> _boundingBoxPoints;
 
@@ -52,7 +53,7 @@ namespace WzComparerR2.MapRender
                             if (smAni.GetCurrent() == null) //当前无动作
                             {
                                 string attackState = smAni.Data.States.FirstOrDefault(s => s.Contains("attack"));
-                                if (attackState != null && (_randomGenerator.Next(100) < 30))
+                                if (attackState != null && (_randomGenerator.Next(100) < AttackPercentage))
                                 {
                                     smAni.SetAnimation(attackState);
                                 }

@@ -13,9 +13,10 @@ namespace WzComparerR2.MapRender.Patches
         Npc,
         Mob,
         Foothold,
-        LadderRope,
         Portal,
         Front,
+        BoundingBox,
+        LadderRope,
         NpcName,
         MobName,
     }

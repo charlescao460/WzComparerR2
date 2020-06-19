@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using WzComparerR2.WzLib;
 using NAudio.Wave;
 
@@ -7,19 +8,28 @@ namespace WzComparerR2.MapRender
 {
     class Music : IDisposable
     {
+        
+
+
         public Music(Wz_Sound sound)
         {
             this.soundData = sound.ExtractSound();
             mp3Reader = new Mp3FileReader(new MemoryStream(soundData));
-            waveOut = new WaveOut();
+            waveOut = new WaveOut(WaveCallbackInfo.FunctionCallback());
             waveOut.Init(mp3Reader);
             waveOut.PlaybackStopped += (src, e) =>
             {
                 if (IsLoop)
                 {
-                    mp3Reader.Position = 0;
-                    waveOut.Init(mp3Reader);
-                    waveOut.Play();
+                    try
+                    {
+                        mp3Reader.Position = 0;
+                        waveOut.Play();
+                    }
+                    catch (Exception)
+                    {
+                        // When ended for destruction
+                    }
                 }
             };
 
@@ -74,6 +84,7 @@ namespace WzComparerR2.MapRender
         public void Dispose()
         {
             Music.GlobalVolumeChanged -= this.OnGlobalVolumeChanged;
+            mp3Reader.Dispose();
             waveOut.Dispose();
         }
 

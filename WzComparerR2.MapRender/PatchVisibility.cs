@@ -15,6 +15,7 @@ namespace WzComparerR2.MapRender
                 this.dictVisible[type] = true;
             }
             this.PortalInEditMode = false;
+            this.BoundingBoxVisible = false;
         }
 
         public bool BackVisible
@@ -51,6 +52,12 @@ namespace WzComparerR2.MapRender
         {
             get { return IsVisible(RenderObjectType.Mob); }
             set { this.SetVisible(RenderObjectType.Mob, value); }
+        }
+
+        public bool BoundingBoxVisible
+        {
+            get { return IsVisible(RenderObjectType.BoundingBox); }
+            set { this.SetVisible(RenderObjectType.BoundingBox,value);}
         }
 
         public bool FootHoldVisible

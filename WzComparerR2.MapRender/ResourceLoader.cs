@@ -351,6 +351,12 @@ namespace WzComparerR2.MapRender
                 Blend = node.Nodes["blend"].GetValueEx(0) != 0,
                 Origin = (node.Nodes["origin"]?.Value as Wz_Vector)?.ToPoint() ?? Point.Zero
             };
+            Wz_Vector lt = node.Nodes["lt"]?.Value as Wz_Vector;
+            Wz_Vector rb = node.Nodes["rb"]?.Value as Wz_Vector;
+            if (lt != null && rb != null)
+            {
+                frame.BoundingBox = new Rectangle(lt.X, lt.Y, Math.Abs(lt.X - rb.X), Math.Abs(lt.Y - rb.Y));
+            }
             frame.A0 = node.Nodes["a0"].GetValueEx(255);
             frame.A1 = node.Nodes["a1"].GetValueEx(frame.A0);
             return frame;

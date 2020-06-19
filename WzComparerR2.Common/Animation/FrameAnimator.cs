@@ -20,6 +20,8 @@ namespace WzComparerR2.Animation
 
         public Frame CurrentFrame { get; protected set; }
 
+        public int CurrentFrameIndex { get; private set; }
+
         public override int Length
         {
             get { return this._length; }
@@ -84,9 +86,9 @@ namespace WzComparerR2.Animation
             }
 
             float progress;
-            int index = GetProcessFromTimeline(_timeline, _timeOffset, out progress);
+            CurrentFrameIndex = GetProcessFromTimeline(_timeline, _timeOffset, out progress);
 
-            var frame = this.Data.Frames[index];
+            var frame = this.Data.Frames[CurrentFrameIndex];
             if (this.CurrentFrame == null)
             {
                 this.CurrentFrame = new Frame();

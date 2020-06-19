@@ -15,6 +15,8 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2
     {
+        private List<Point> _boundingBoxPoints;
+
         private void UpdateAllItems(SceneNode node, TimeSpan elapsed)
         {
             var container = node as ContainerNode;
@@ -51,6 +53,7 @@ namespace WzComparerR2.MapRender
                                 smAni.SetAnimation(smAni.Data.States[0]); //动作0
                             }
                             smAni.Update(elapsed);
+                            UpdateBoundingBox(life);
                         }
 
                         life.View.Time += (int)elapsed.TotalMilliseconds;
@@ -119,6 +122,60 @@ namespace WzComparerR2.MapRender
             }
         }
 
+        private void UpdateBoundingBox(LifeItem life)
+        {
+            if (_boundingBoxPoints == null)
+            {
+                return;
+            }
+            var boundingBox = GetLifeBoundingBox(life);
+            if (boundingBox.HasValue)
+            {
+                var width = boundingBox.Value.Width;
+                var height = boundingBox.Value.Height;
+                var x = life.X - (width / 2);
+                var y = life.Cy - height;
+
+                _boundingBoxPoints.Add(new Point(x, y));
+                _boundingBoxPoints.Add(new Point(x + width, y));
+
+                _boundingBoxPoints.Add(new Point(x + width, y));
+                _boundingBoxPoints.Add(new Point(x + width, y + height));
+
+                _boundingBoxPoints.Add(new Point(x + width, y + height));
+                _boundingBoxPoints.Add(new Point(x, y + height));
+
+                _boundingBoxPoints.Add(new Point(x, y + height));
+                _boundingBoxPoints.Add(new Point(x, y));
+
+            }
+        }
+
+        internal Rectangle? GetLifeBoundingBox(LifeItem life)
+        {
+            if (life.View.Animator is StateMachineAnimator animator)
+            {
+                try
+                {
+                    var data = (StateMachineAnimator.FrameStateMachineData)animator.Data;
+                    IDictionary<string, RepeatableFrameAnimationData> dict = data.Data;
+                    string currentState = data.SelectedState;
+                    int currentFrame = (animator.Data as StateMachineAnimator.FrameStateMachineData)
+                        .FrameAnimator
+                        .CurrentFrameIndex;
+                    var ret = dict[currentState].Frames[currentFrame].BoundingBox;
+                    return ret;
+                }
+                catch (Exception e) when (e is NullReferenceException || e is KeyNotFoundException ||
+                                          e is IndexOutOfRangeException)
+                {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
         private void UpdateTooltip()
         {
             var mouse = renderEnv.Input.MousePosition;
@@ -173,11 +230,11 @@ namespace WzComparerR2.MapRender
 
             //可见性
             sb.Append(" ctrl+");
-            int[] array = new[] { 1, 2, 3, 4, 5, 6, 7, 9, 10 };
+            int[] array = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
             for (int i = 0; i < array.Length; i++)
             {
                 var objType = (Patches.RenderObjectType)array[i];
-                sb.Append(this.patchVisibility.IsVisible(objType) ? "-" : (i + 1).ToString());
+                sb.Append(this.patchVisibility.IsVisible(objType) ? "-" : (array[i]).ToString());
             }
 
             sb.Append(" Mouse:");
@@ -242,8 +299,24 @@ namespace WzComparerR2.MapRender
 
             //在场景之上绘制额外标记
             DrawFootholds(gameTime);
+            DrawBoundingBox(gameTime);
 
             this.batcher.End();
+        }
+
+        private void DrawBoundingBox(GameTime gameTime)
+        {
+            if (patchVisibility.BoundingBoxVisible)
+            {
+                if (_boundingBoxPoints?.Count > 0)
+                {
+                    var meshItem = this.batcher.MeshPop();
+                    meshItem.RenderObject = new LineListMesh(_boundingBoxPoints.ToArray(), Color.DarkOrange, 2);
+                    this.batcher.Draw(meshItem);
+                    this.batcher.MeshPush(meshItem);
+                }
+            }
+            _boundingBoxPoints = new List<Point>();
         }
 
         internal void DrawTooltipItems(GameTime gameTime)
@@ -486,7 +559,7 @@ namespace WzComparerR2.MapRender
                     }
                 }
 
-                _pop:
+            _pop:
                 if (sceneStack.Count > 0)
                 {
                     currNode = sceneStack.Pop();

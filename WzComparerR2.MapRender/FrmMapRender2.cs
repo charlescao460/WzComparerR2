@@ -251,6 +251,8 @@ namespace WzComparerR2.MapRender
                 }
             }), KeyCode.D8, ModifierKeys.Control));
             this.ui.InputBindings.Add(new KeyBinding(new RelayCommand(_ => this.patchVisibility.FrontVisible = !this.patchVisibility.FrontVisible), KeyCode.D9, ModifierKeys.Control));
+            this.ui.InputBindings.Add(new KeyBinding(new RelayCommand(_ => this.patchVisibility.BoundingBoxVisible = !this.patchVisibility.BoundingBoxVisible), KeyCode.D0, ModifierKeys.Control));
+
 
             //移动操作
             #region 移动操作

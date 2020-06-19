@@ -15,6 +15,7 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2
     {
+        private static Random _randomGenerator = new Random();
         private List<Point> _boundingBoxPoints;
 
         private void UpdateAllItems(SceneNode node, TimeSpan elapsed)
@@ -50,7 +51,15 @@ namespace WzComparerR2.MapRender
                         {
                             if (smAni.GetCurrent() == null) //当前无动作
                             {
-                                smAni.SetAnimation(smAni.Data.States[0]); //动作0
+                                string attackState = smAni.Data.States.FirstOrDefault(s => s.Contains("attack"));
+                                if (attackState != null && (_randomGenerator.Next(100) < 30))
+                                {
+                                    smAni.SetAnimation(attackState);
+                                }
+                                else
+                                {
+                                    smAni.SetAnimation(smAni.Data.States[0]);
+                                }
                             }
                             smAni.Update(elapsed);
                             UpdateBoundingBox(life);
@@ -311,7 +320,7 @@ namespace WzComparerR2.MapRender
                 if (_boundingBoxPoints?.Count > 0)
                 {
                     var meshItem = this.batcher.MeshPop();
-                    meshItem.RenderObject = new LineListMesh(_boundingBoxPoints.ToArray(), Color.DarkOrange, 2);
+                    meshItem.RenderObject = new LineListMesh(_boundingBoxPoints.ToArray(), Color.OrangeRed, 2);
                     this.batcher.Draw(meshItem);
                     this.batcher.MeshPush(meshItem);
                 }

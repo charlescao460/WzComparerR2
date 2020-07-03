@@ -143,8 +143,8 @@ namespace WzComparerR2.MapRender
             {
                 var width = boundingBox.Value.Width;
                 var height = boundingBox.Value.Height;
-                var x = life.X - (width / 2);
-                var y = life.Cy - height;
+                var x = boundingBox.Value.X;
+                var y = boundingBox.Value.Y;
 
                 _boundingBoxPoints.Add(new Point(x, y));
                 _boundingBoxPoints.Add(new Point(x + width, y));
@@ -173,11 +173,14 @@ namespace WzComparerR2.MapRender
                     int currentFrame = (animator.Data as StateMachineAnimator.FrameStateMachineData)
                         .FrameAnimator
                         .CurrentFrameIndex;
-                    var ret = dict[currentState].Frames[currentFrame].BoundingBox;
-                    return ret;
+                    var raw = dict[currentState].Frames[currentFrame].BoundingBox.Value;
+                    return new Rectangle(life.X - (raw.Width / 2),
+                        life.Cy - raw.Height,
+                        raw.Width,
+                        raw.Height);
                 }
                 catch (Exception e) when (e is NullReferenceException || e is KeyNotFoundException ||
-                                          e is IndexOutOfRangeException)
+                                          e is IndexOutOfRangeException || e is InvalidOperationException)
                 {
                     return null;
                 }

@@ -141,6 +141,8 @@ namespace WzComparerR2
             tooltipQuickView.SkillRender.ShowProperties = Setting.Skill.ShowProperties;
             tooltipQuickView.SkillRender.ShowObjectID = Setting.Skill.ShowID;
             tooltipQuickView.SkillRender.ShowDelay = Setting.Skill.ShowDelay;
+            tooltipQuickView.SkillRender.DisplayCooltimeMSAsSec = Setting.Skill.DisplayCooltimeMSAsSec;
+            tooltipQuickView.SkillRender.DisplayPermyriadAsPercent = Setting.Skill.DisplayPermyriadAsPercent;
             this.skillDefaultLevel = Setting.Skill.DefaultLevel;
             this.skillInterval = Setting.Skill.IntervalLevel;
             tooltipQuickView.GearRender.ShowObjectID = Setting.Gear.ShowID;
@@ -177,14 +179,7 @@ namespace WzComparerR2
             if (!string.IsNullOrEmpty(e.FullPath)) //用fullpath作为输入参数
             {
                 fullPath = e.FullPath.Split('/', '\\');
-                try
-                {
-                    e.WzType = (Wz_Type)Enum.Parse(typeof(Wz_Type), fullPath[0], true);
-                }
-                catch
-                {
-                    e.WzType = Wz_Type.Unknown;
-                }
+                e.WzType = Enum.TryParse<Wz_Type>(fullPath[0], true, out var wzType) ? wzType : Wz_Type.Unknown;
             }
 
             List<Wz_Node> preSearch = new List<Wz_Node>();
@@ -644,7 +639,15 @@ namespace WzComparerR2
             advTree1.BeginUpdate();
             try
             {
-                wz.Load(wzFilePath);
+                if (wz.IsKMST1125WzFormat(wzFilePath))
+                {
+                    wz.LoadKMST1125DataWz(wzFilePath);
+                }
+                else
+                {
+                    wz.Load(wzFilePath, true);
+                }
+                
                 if (WcR2Config.Default.SortWzOnOpened)
                 {
                     sortWzNode(wz.WzNode);
@@ -889,21 +892,27 @@ namespace WzComparerR2
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Dir Name", Path.GetFileName(e.Node.Text) }));
                 autoResizeColumns(listViewExWzDetail);
             }
-            else if (selectedNode.Value is Wz_File)
+            else if (selectedNode.Value is Wz_File wzFile)
             {
-                Wz_File wzFile = (Wz_File)selectedNode.Value;
-
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "File Name", wzFile.Header.FileName }));
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "File Size", wzFile.Header.FileSize + " bytes" }));
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Copyright", wzFile.Header.Copyright }));
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Version", wzFile.Header.WzVersion.ToString() }));
-                listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Wz Type", wzFile.Type.ToString() }));
+                listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Wz Type", wzFile.IsSubDir ? "SubDir" : wzFile.Type.ToString() }));
+
+                foreach (Wz_File subFile in wzFile.MergedWzFiles)
+                {
+                    listViewExWzDetail.Items.Add(" ");
+                    listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "File Name", subFile.Header.FileName }));
+                    listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "File Size", subFile.Header.FileSize + " bytes" }));
+                    listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Copyright", subFile.Header.Copyright }));
+                    listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Version", subFile.Header.WzVersion.ToString() }));
+                }
+
                 autoResizeColumns(listViewExWzDetail);
             }
-            else if (selectedNode.Value is Wz_Image)
+            else if (selectedNode.Value is Wz_Image wzImage)
             {
-                Wz_Image wzImage = (Wz_Image)selectedNode.Value;
-
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Image Name", wzImage.Name }));
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Image Size", wzImage.Size + " bytes" }));
                 listViewExWzDetail.Items.Add(new ListViewItem(new string[] { "Image Offset", wzImage.Offset + " bytes" }));
@@ -2822,9 +2831,9 @@ namespace WzComparerR2
                         {
                             string txt = string.Format("待比较wz文件：\r\n\r\n  new : {0} (ver:{1})\r\n  old : {2} (ver:{3})\r\n\r\n如果继续对比请选择Yes，如果想交换文件顺序请选择No。",
                                 fileNew.Header.FileName,
-                                fileNew.Header.WzVersion,
+                                fileNew.GetMergedVersion(),
                                 fileOld.Header.FileName,
-                                fileOld.Header.WzVersion
+                                fileOld.GetMergedVersion()
                                 );
                             switch (MessageBoxEx.Show(txt, "Easy Compare", MessageBoxButtons.YesNoCancel))
                             {

@@ -17,6 +17,8 @@ namespace WzComparerR2.MapRender.Patches2
         public string ToName { get; set; }
         public string Script { get; set; }
         public int Image { get; set; }
+        public bool EnchantPortal { get; set; }
+        public bool ShownAtMinimap { get; set; }
 
         public ItemView View { get; set; }
         public ItemTooltip Tooltip { get; set; }
@@ -32,12 +34,14 @@ namespace WzComparerR2.MapRender.Patches2
                 ToMap = node.Nodes["tm"].GetValueEx<int>(),
                 ToName = node.Nodes["tn"].GetValueEx<string>(null),
                 Script = node.Nodes["script"].GetValueEx<string>(null),
-                Image = node.Nodes["image"].GetValueEx<int>(0)
+                Image = node.Nodes["image"].GetValueEx<int>(0),
+                EnchantPortal = node.Nodes["enchantPortal"].GetValueEx<int>(0) != 0,
+                ShownAtMinimap = node.Nodes["shownAtMinimap"].GetValueEx<int>(0) != 0
             };
             return item;
         }
 
-        public static readonly string[] PortalTypes = new[] { "sp", "pi", "pv", "pc", "pg", "tp", "ps", "pgi", "psi", "pcs", "ph", "psh", "pcj", "pci", "pcig", "pshg" };
+        public static readonly string[] PortalTypes = new[] { "sp", "pi", "pv", "pc", "pg", "tp", "ps", "pgi", "psi", "pcs", "ph", "psh", "pcj", "pci", "pcig", "pshg", "pcc" };
 
         public class ItemView
         {

@@ -12,6 +12,7 @@ namespace WzComparerR2.CharaSim
         hair = 3,
         hair2 = 4,
         face2 = 5,
+        hair3 = 6,
 
         /// <summary>
         /// 脸饰 101
@@ -151,6 +152,10 @@ namespace WzComparerR2.CharaSim
         /// </summary>
         tuner = 1213,
         /// <summary>
+        /// 龙息臂箭 1214
+        /// </summary>
+        breathShooter = 1214,
+        /// <summary>
         /// 灵魂手铳 122
         /// </summary>
         soulShooter = 122,
@@ -283,6 +288,10 @@ namespace WzComparerR2.CharaSim
         /// </summary>
         boxingClaw = 135282,
         /// <summary>
+        /// 拳天 135_86
+        /// </summary>
+        boxingSky = 135286,
+        /// <summary>
         /// 手腕护带 135_90
         /// </summary>
         viperWristband = 135290,
@@ -359,6 +368,10 @@ namespace WzComparerR2.CharaSim
         /// </summary>
         bracelet = 135400,
         /// <summary>
+        /// 武器腰带 135401x
+        /// </summary>
+        weaponBelt = 135401,
+        /// <summary>
         /// 手杖
         /// </summary>
         cane = 136,
@@ -378,6 +391,10 @@ namespace WzComparerR2.CharaSim
         /// 双手剑 140
         /// </summary>
         thSword = 140,
+        /// <summary>
+        /// 拳封 140_3xxx
+        /// </summary>
+        boxingCannon = 1403,
         /// <summary>
         /// 双手斧 141
         /// </summary>

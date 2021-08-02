@@ -35,6 +35,7 @@ namespace WzComparerR2.CharaSim
         public int Hammer { get; set; }
         public bool HasTuc { get; internal set; }
         public bool CanPotential { get; internal set; }
+        public string EpicHs { get; internal set; }
 
         public bool FixLevel { get; internal set; }
         public List<GearLevelInfo> Levels { get; internal set; }
@@ -86,11 +87,23 @@ namespace WzComparerR2.CharaSim
             {
                 return 0;
             }
+            if (this.Cash)
+            {
+                return 0;
+            }
+            if (this.GetBooleanValue(GearPropType.onlyUpgrade))
+            {
+                return 0;
+            }
+            if (this.type == GearType.machineEngine || this.type == GearType.machineArms || this.type == GearType.machineLegs || this.type == GearType.machineBody || this.type == GearType.machineTransistors || this.type == GearType.dragonMask || this.type == GearType.dragonPendant || this.type == GearType.dragonWings || this.type == GearType.dragonTail)
+            {
+                return 0;
+            }
 
             int reqLevel;
             this.Props.TryGetValue(GearPropType.reqLevel, out reqLevel);
             int[] data = null;
-            foreach(int[] item in starData)
+            foreach (int[] item in starData)
             {
                 if (reqLevel >= item[0])
                 {
@@ -200,7 +213,8 @@ namespace WzComparerR2.CharaSim
         {
             int _type = (int)type;
             return (_type >= 140 && _type <= 149)
-                || (_type >= 152 && _type <= 159);
+                || (_type >= 152 && _type <= 159)
+                || type == GearType.boxingCannon;
         }
 
         public static bool IsMechanicGear(GearType type)
@@ -300,6 +314,10 @@ namespace WzComparerR2.CharaSim
                     return GearType.shiningRod;
                 case 1213:
                     return GearType.tuner;
+                case 1214:
+                    return GearType.breathShooter;
+                case 1403:
+                    return GearType.boxingCannon;
             }
             if (code / 10000 == 135)
             {
@@ -308,6 +326,7 @@ namespace WzComparerR2.CharaSim
                     case 13522:
                     case 13528:
                     case 13529:
+                    case 13540:
                         return (GearType)(code / 10);
 
                     default:
@@ -666,6 +685,36 @@ namespace WzComparerR2.CharaSim
                                     try
                                     {
                                         gear.AbilityTimeLimited.Add(type, Convert.ToInt32(statNode.Value));
+                                    }
+                                    finally
+                                    {
+                                    }
+                                }
+                            }
+                            break;
+
+                        case "onlyUpgrade":
+                            int upgradeItemID = subNode.Nodes["0"]?.GetValueEx(0) ?? 0;
+                            gear.Props.Add(GearPropType.onlyUpgrade, upgradeItemID);
+                            break;
+
+                        case "epic":
+                            Wz_Node hsNode = subNode.Nodes["hs"];
+                            if (hsNode != null)
+                            {
+                                gear.EpicHs = Convert.ToString(hsNode.Value);
+                            }
+                            break;
+
+                        case "gatherTool":
+                            foreach (Wz_Node gatherNode in subNode.Nodes)
+                            {
+                                GearPropType type;
+                                if (Enum.TryParse(subNode.Text + "_" + gatherNode.Text, out type))
+                                {
+                                    try
+                                    {
+                                        gear.Props.Add(type, Convert.ToInt32(gatherNode.Value));
                                     }
                                     finally
                                     {

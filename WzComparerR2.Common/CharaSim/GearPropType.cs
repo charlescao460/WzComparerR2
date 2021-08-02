@@ -24,6 +24,7 @@ namespace WzComparerR2.CharaSim
         incMMPr,
         incMDF,
         incARC,
+        incAUT,
         incPAD_incMAD,
         incPAD,
         incMAD,
@@ -168,5 +169,15 @@ namespace WzComparerR2.CharaSim
         blockGoldHammer,
         exceptUpgrade,
         colorvar,
+        noMoveToLocker,
+        onlyUpgrade,
+        cantRepair,
+        noPetEquipStatMoveItem,
+        BTSLabel,
+
+        gatherTool_incSkillLevel = 2000,
+        gatherTool_incSpeed,
+        gatherTool_incNum,
+        gatherTool_reqSkillLevel,
     }
 }

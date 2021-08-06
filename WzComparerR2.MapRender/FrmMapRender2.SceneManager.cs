@@ -15,6 +15,9 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2
     {
+        private volatile bool _isSceneRunning;
+        protected bool SceneRunning => _isSceneRunning;
+
         MapViewData viewData;
         LinkedList<MapViewData> viewHistory;
 
@@ -341,6 +344,7 @@ namespace WzComparerR2.MapRender
             {
                 this.opacity = (float)(i / time);
                 SceneUpdate();
+                _isSceneRunning = true;
                 yield return null;
             }
             this.opacity = 1;
@@ -463,7 +467,7 @@ namespace WzComparerR2.MapRender
             UpdateTooltip();
         }
 
-        private void MoveToPortal(int? toMap, string pName, string fromPName = null, bool isBack = false)
+        protected void MoveToPortal(int? toMap, string pName, string fromPName = null, bool isBack = false)
         {
             if (toMap != null && toMap != this.mapData?.ID) //跳转地图
             {
@@ -480,6 +484,7 @@ namespace WzComparerR2.MapRender
                         viewData.Portal = fromPName;
                         viewData.IsMoveBack = isBack;
                     }
+                    _isSceneRunning = false;
                 }
                 else
                 {

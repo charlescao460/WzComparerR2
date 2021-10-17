@@ -35,7 +35,10 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DevComponents.DotNetBar2, Version=12.5.0.2, Culture=neutral, PublicKeyToken=c39c3242a43eee2b, processorArchitecture=MSIL" />
+    <Reference Include="DevComponents.DotNetBar2, Version=12.1.0.0, Culture=neutral, PublicKeyToken=c39c3242a43eee2b, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\References\DevComponents.DotNetBar2.dll</HintPath>
+    </Reference>
     <Reference Include="ImageManipulation">
       <HintPath>..\References\ImageManipulation.dll</HintPath>
       <Private>True</Private>
@@ -82,6 +85,7 @@
     <Compile Include="BuildInGifEncoder.cs" />
     <Compile Include="CharaSim\ExclusiveEquip.cs" />
     <Compile Include="CharaSim\SetItemBonusByTime.cs" />
+    <Compile Include="Controls\AnimationClipOptions.cs" />
     <Compile Include="Controls\AnimationItemEventArgs.cs" />
     <Compile Include="Controls\AnimationRecoder.cs" />
     <Compile Include="Animation\Frame.cs" />
@@ -124,10 +128,18 @@
       <DependentUpon>AnimationControl.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\AnimationItem.cs" />
+    <Compile Include="Controls\FrmProgressDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\FrmProgressDialog.Designer.cs">
+      <DependentUpon>FrmProgressDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\GraphicsDeviceControl.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Controls\GraphicsDeviceService.cs" />
+    <Compile Include="Controls\ProgressDialog.cs" />
+    <Compile Include="Controls\ProgressDialogContext.cs" />
     <Compile Include="Controls\ServiceContainer.cs" />
     <Compile Include="GifCanvas.cs" />
     <Compile Include="GifEncoder.cs" />
@@ -190,6 +202,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Rendering\Effect\PngEffect.fx" />
+    <EmbeddedResource Include="Controls\FrmProgressDialog.resx">
+      <DependentUpon>FrmProgressDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Rendering\Effect\PngEffect.mgfxo" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

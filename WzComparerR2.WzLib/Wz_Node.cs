@@ -197,16 +197,28 @@ namespace WzComparerR2.WzLib
             if (this.value is T)
                 return (T)this.value;
 
-            IConvertible iconvertible = this.value as IConvertible;
-            if (iconvertible != null)
+
+            if (this.value is string s)
             {
+                if (ObjectConverter.TryParse<T>(s, out T result, out bool hasTryParse))
+                {
+                    return result;
+                }
+                if (hasTryParse)
+                {
+                    return defaultValue;
+                }
+            }
+
+            if (this.value is IConvertible iconvertible)
+            {
+                if (typeT.IsGenericType && typeT.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    typeT = typeT.GetGenericArguments()[0];
+                }
+
                 try
                 {
-                    if (typeT.IsGenericType && typeT.GetGenericTypeDefinition() == typeof(Nullable<>))
-                    {
-                        typeT = typeT.GetGenericArguments()[0];
-                    }
-
                     T result = (T)iconvertible.ToType(typeT, null);
                     return result;
                 }
@@ -654,6 +666,99 @@ namespace WzComparerR2.WzLib
             {
                 if (this.HasID && other.HasID) return this.ImgID.CompareTo(other.ImgID);
                 return StringComparer.Ordinal.Compare(this.Text, other.Text);
+            }
+        }
+    }
+
+    public static class ObjectConverter
+    {
+        private static readonly Dictionary<Type, Delegate> cache = new Dictionary<Type, Delegate>();
+        private delegate bool TryParseFunc<T>(string s, out T value);
+
+        public static bool TryParse<T>(string s, out T value, out bool hasTryParse)
+        {
+            var typeT = typeof(T);
+
+            TryParseFunc<T> tryParseFunc = null;
+            if (!cache.TryGetValue(typeT, out var dele))
+            {
+                bool isNullable = false;
+                Type innerType;
+                if (typeT.IsGenericType && typeT.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    isNullable = true;
+                    innerType = typeT.GetGenericArguments()[0];
+                }
+                else
+                {
+                    innerType = typeT;
+                }
+
+                var methodInfo = innerType.GetMethod("TryParse",
+                    BindingFlags.Static | BindingFlags.Public,
+                    null,
+                    new[] { typeof(string), innerType.MakeByRefType() },
+                    null);
+
+                if (methodInfo != null && methodInfo.ReturnType == typeof(bool))
+                {
+                    if (isNullable)
+                    {
+                        dele = Delegate.CreateDelegate(typeof(TryParseFunc<>).MakeGenericType(innerType), methodInfo);
+                        var proxyType = typeof(NullableTryParse<>).MakeGenericType(innerType);
+                        var proxyInstance = Activator.CreateInstance(proxyType, dele);
+                        var proxyParseFunc = proxyType.GetMethod("TryParse", BindingFlags.Public | BindingFlags.Instance);
+                        cache[typeT] = tryParseFunc = (TryParseFunc<T>)Delegate.CreateDelegate(typeof(TryParseFunc<T>), proxyInstance, proxyParseFunc);
+                    }
+                    else
+                    {
+                        cache[typeT] = tryParseFunc = (TryParseFunc<T>)Delegate.CreateDelegate(typeof(TryParseFunc<T>), methodInfo);
+                    }
+                }
+                else
+                {
+                    cache[typeT] = null;
+                }
+            }
+            else
+            {
+                tryParseFunc = dele as TryParseFunc<T>;
+            }
+
+            if (tryParseFunc != null)
+            {
+                hasTryParse = true;
+                return tryParseFunc(s, out value);
+            }
+            else
+            {
+                hasTryParse = false;
+                value = default(T);
+                return false;
+            }
+        }
+
+        private class NullableTryParse<T> where T : struct
+        {
+            public NullableTryParse(TryParseFunc<T> func)
+            {
+                this.func = func;
+            }
+
+            private readonly TryParseFunc<T> func;
+
+            public bool TryParse(string s, out T? value)
+            {
+                if (this.func(s, out var v))
+                {
+                    value = v;
+                    return true;
+                }
+                else
+                {
+                    value = default(T?);
+                    return false;
+                }
             }
         }
     }

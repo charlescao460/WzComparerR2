@@ -65,7 +65,7 @@ namespace WzComparerR2.Animation
         public KeyFrame[] GetKeyFrames()
         {
             return this.Data.Frames.Select(f =>
-                new KeyFrame() { Length = f.Delay, Animated = f.A0 == f.A1 }
+                new KeyFrame() { Length = f.Delay, Animated = f.A0 != f.A1 }
                 ).ToArray();
         }
 
@@ -99,6 +99,11 @@ namespace WzComparerR2.Animation
             this.CurrentFrame.Origin = frame.Origin;
             this.CurrentFrame.A0 = (int)MathHelper.Lerp(frame.A0, frame.A1, progress);
             this.CurrentFrame.Blend = frame.Blend;
+        }
+
+        public override object Clone()
+        {
+            return new FrameAnimator(this.Data);
         }
 
         public static int[] CreateTimeline(IEnumerable<int> delays)

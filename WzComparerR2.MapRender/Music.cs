@@ -1,53 +1,41 @@
 ﻿using System;
-using System.IO;
-using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using WzComparerR2.WzLib;
-using NAudio.Wave;
+using System.Runtime.InteropServices;
+using ManagedBass;
 
 namespace WzComparerR2.MapRender
 {
     class Music : IDisposable
     {
-        
-
-
         public Music(Wz_Sound sound)
         {
             this.soundData = sound.ExtractSound();
-            mp3Reader = new Mp3FileReader(new MemoryStream(soundData));
-            waveOut = new WaveOut(WaveCallbackInfo.FunctionCallback());
-            waveOut.Init(mp3Reader);
-            waveOut.PlaybackStopped += (src, e) =>
-            {
-                if (IsLoop)
-                {
-                    try
-                    {
-                        mp3Reader.Position = 0;
-                        waveOut.Play();
-                    }
-                    catch (Exception)
-                    {
-                        // When ended for destruction
-                    }
-                }
-            };
-
+            this.pData = GCHandle.Alloc(this.soundData, GCHandleType.Pinned);
+            this.hStream = Bass.CreateStream(pData.AddrOfPinnedObject(), 0, this.soundData.Length, BassFlags.Default);
             Music.GlobalVolumeChanged += this.OnGlobalVolumeChanged;
         }
 
-        private WaveOut waveOut;
         private byte[] soundData;
-        private Mp3FileReader mp3Reader;
+        private GCHandle pData;
+        private int hStream;
+        private float? vol;
 
-        public bool IsLoop { get; set; }
+        public bool IsLoop
+        {
+            get { return (Bass.ChannelFlags(hStream, 0, 0) & BassFlags.Loop) != 0; }
+            set { Bass.ChannelFlags(hStream, value ? BassFlags.Loop : BassFlags.Default, BassFlags.Loop); }
+        }
 
         public PlayState State
         {
             get
             {
-                var state = waveOut.PlaybackState;
-                switch (state)
+                var active = Bass.ChannelIsActive(hStream);
+                switch (active)
                 {
                     case PlaybackState.Stopped: return PlayState.Stopped;
                     case PlaybackState.Playing: return PlayState.Playing;
@@ -61,31 +49,40 @@ namespace WzComparerR2.MapRender
         {
             get
             {
-                return waveOut.Volume;
+                if (vol == null)
+                {
+                    vol = Bass.ChannelGetAttribute(hStream, ChannelAttribute.Volume, out float value) ? value : 0;
+                }
+                return vol.Value;
             }
-            set { waveOut.Volume = value * globalVol; }
+            set
+            {
+                vol = value;
+                Bass.ChannelSetAttribute(hStream, ChannelAttribute.Volume, vol.Value * globalVol);
+            }
         }
 
         public void Play()
         {
-            waveOut.Play();
+            Bass.ChannelPlay(hStream, false);
         }
 
         public void Pause()
         {
-            waveOut.Pause();
+            Bass.ChannelPause(hStream);
         }
 
         public void Stop()
         {
-            waveOut.Stop();
+            Bass.ChannelStop(hStream);
         }
 
         public void Dispose()
         {
             Music.GlobalVolumeChanged -= this.OnGlobalVolumeChanged;
-            mp3Reader.Dispose();
-            waveOut.Dispose();
+            Bass.StreamFree(hStream);
+            this.pData.Free();
+
         }
 
         public enum PlayState
@@ -93,6 +90,7 @@ namespace WzComparerR2.MapRender
             Stopped = 0,
             Playing = 1,
             Paused = 2,
+
             Unknown = -1,
         }
 

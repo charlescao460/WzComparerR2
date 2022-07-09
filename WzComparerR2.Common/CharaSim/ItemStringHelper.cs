@@ -92,6 +92,7 @@ namespace WzComparerR2.CharaSim
                 case GearPropType.damR:
                 case GearPropType.incDAMr: return "总伤害 : " + sign + value + "%";
                 case GearPropType.incCr: return "爆击率 : " + sign + value + "%";
+                case GearPropType.incCDr: return "爆击伤害 : " + sign + value + "%";
                 case GearPropType.knockback: return "直接攻击时" + value + "的比率发生后退现象。";
                 case GearPropType.incPVPDamage: return "大乱斗时追加攻击力" + sign + value;
                 case GearPropType.incPQEXPr: return "组队任务经验值增加" + value + "%";
@@ -344,6 +345,8 @@ namespace WzComparerR2.CharaSim
 
                 case GearType.breathShooter: return "龙息臂箭";
                 case GearType.weaponBelt: return "武器腰带";
+
+                case GearType.ornament: return "饰品";
                 default: return null;
             }
         }
@@ -473,6 +476,8 @@ namespace WzComparerR2.CharaSim
 
                 case GearType.boxingCannon:
                 case GearType.boxingSky: return GetExtraJobReqString(175);
+
+                case GearType.ornament: return GetExtraJobReqString(162);
                 default: return null;
             }
         }
@@ -508,6 +513,7 @@ namespace WzComparerR2.CharaSim
                 case 151: return "御剑骑士可穿戴装备";
                 case 152: return "圣晶使徒可穿戴装备";
                 case 155: return "影魂异人可穿戴装备";
+                case 162: return "元素师可穿戴装备";
                 case 164: return "虎影可穿戴装备";
                 case 175: return "墨玄可穿戴装备";
                 default: return null;

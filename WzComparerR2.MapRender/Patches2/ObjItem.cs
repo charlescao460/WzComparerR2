@@ -16,7 +16,6 @@ namespace WzComparerR2.MapRender.Patches2
         public int Y { get; set; }
         public int Z { get; set; }
         public bool Flip { get; set; }
-        public string Tags { get; set; }
 
         public ItemView View { get; set; }
 
@@ -34,8 +33,13 @@ namespace WzComparerR2.MapRender.Patches2
                 Z = node.Nodes["z"].GetValueEx(0),
 
                 Flip = node.Nodes["f"].GetValueEx(false),
-                Tags = node.Nodes["tags"].GetValueEx<string>(null),
             };
+
+            string objTags = node.Nodes["tags"].GetValueEx<string>(null);
+            if (!string.IsNullOrWhiteSpace(objTags))
+            {
+                item.Tags = objTags.Split(',').Select(tag => tag.Trim()).ToArray();
+            }
             return item;
         }
 

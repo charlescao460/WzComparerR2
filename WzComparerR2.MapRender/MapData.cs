@@ -178,13 +178,32 @@ namespace WzComparerR2.MapRender
                    centerX = miniMapNode.FindNodeByPath("centerX"),
                    centerY = miniMapNode.FindNodeByPath("centerY"),
                    mag = miniMapNode.FindNodeByPath("mag");
+            this.MiniMap.ExtraCanvas.Clear();
 
             canvas = canvas.GetLinkedSourceNode(PluginManager.FindWz);
-
             if (canvas != null)
             {
                 this.MiniMap.Canvas = resLoader.Load<Texture2D>(canvas);
+                this.MiniMap.ExtraCanvas.Add("canvas", this.MiniMap.Canvas);
             }
+            else
+            {
+                this.MiniMap.Canvas = null;
+            }
+
+            // example mapID: 993200000, KMST1140
+            for (int i = 1; ; i++)
+            {
+                string canvasName = $"canvas{i}";
+                var extraCanvas = miniMapNode.FindNodeByPath(canvasName);
+                if (extraCanvas == null)
+                {
+                    break;
+                }
+                extraCanvas = extraCanvas.GetLinkedSourceNode(PluginManager.FindWz);
+                this.MiniMap.ExtraCanvas.Add(canvasName, resLoader.Load<Texture2D>(extraCanvas));
+            }
+
             this.MiniMap.Width = width.GetValueEx(0);
             this.MiniMap.Height = height.GetValueEx(0);
             this.MiniMap.CenterX = centerX.GetValueEx(0);
@@ -768,22 +787,29 @@ namespace WzComparerR2.MapRender
             }
 
             var desc = resLoader.LoadParticleDesc(particleNode);
-            var pSystem = new ParticleSystem(this.random);
-            pSystem.LoadDescription(desc);
-
-            for (int i = 0; i < particle.SubItems.Length; i++)
+            switch (desc)
             {
-                var subItem = particle.SubItems[i];
-                var pGroup = pSystem.CreateGroup(i.ToString());
-                pGroup.Position = new Vector2(subItem.X, subItem.Y);
-                pGroup.Active();
-                pSystem.Groups.Add(pGroup);
+                case ParticleDesc desc0:
+                    {
+                        var pSystem = new ParticleSystem(this.random);
+                        pSystem.LoadDescription(desc0);
+
+                        for (int i = 0; i < particle.SubItems.Length; i++)
+                        {
+                            var subItem = particle.SubItems[i];
+                            var pGroup = pSystem.CreateGroup(i.ToString());
+                            pGroup.Position = new Vector2(subItem.X, subItem.Y);
+                            pGroup.Active();
+                            pSystem.Groups.Add(pGroup);
+                        }
+
+                        particle.View = new ParticleItem.ItemView()
+                        {
+                            ParticleSystem = pSystem
+                        };
+                    }
+                    break;
             }
-
-            particle.View = new ParticleItem.ItemView()
-            {
-                ParticleSystem = pSystem
-            };
         }
 
         private StateMachineAnimator CreateSMAnimator(Wz_Node node, ResourceLoader resLoader)

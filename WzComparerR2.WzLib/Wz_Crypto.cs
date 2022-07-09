@@ -94,7 +94,7 @@ namespace WzComparerR2.WzLib
         public void DetectEncryption(Wz_File f)
         {
             int old_off = (int)f.FileStream.Position;
-            f.FileStream.Position = 62;
+            f.FileStream.Position = f.Header.DataStartPosition;
             if (f.ReadInt32() <= 0) //只有文件头 无法预判
             {
                 return;
@@ -157,7 +157,7 @@ namespace WzComparerR2.WzLib
 
         private bool IsLegalNodeName(string nodeName)
         {
-            return nodeName.EndsWith(".img") || Regex.IsMatch(nodeName, @"^[A-Za-z-9_]+$");
+            return nodeName.EndsWith(".img") || nodeName.EndsWith(".lua") || Regex.IsMatch(nodeName, @"^[A-Za-z0-9_]+$");
         }
 
         static readonly byte[] iv_gms = { 0x4d, 0x23, 0xc7, 0x2b };

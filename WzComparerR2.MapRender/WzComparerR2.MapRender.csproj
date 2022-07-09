@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>WzComparerR2.MapRender</RootNamespace>
     <AssemblyName>WzComparerR2.MapRender</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -52,24 +52,6 @@
     <Reference Include="IMEHelper">
       <HintPath>..\References\IMEHelper.dll</HintPath>
     </Reference>
-    <Reference Include="MonoGame.Framework, Version=3.4.0.456, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\References\MonoGame.Framework.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="NAudio, Version=1.10.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\NAudio.1.10.0\lib\net35\NAudio.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpDX, Version=2.5.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\References\SharpDX.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="SharpDX.RawInput, Version=2.5.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\References\SharpDX.RawInput.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="spine-monogame">
       <HintPath>..\References\spine-monogame.dll</HintPath>
       <Private>False</Private>
@@ -106,9 +88,10 @@
     <Compile Include="MeshBatcher.cs" />
     <Compile Include="MeshItem.cs" />
     <Compile Include="Music.cs" />
-    <Compile Include="Net\ChatClient.cs" />
     <Compile Include="Particle.cs" />
     <Compile Include="ParticleDesc.cs" />
+    <Compile Include="ParticleDesc3.cs" />
+    <Compile Include="ParticleDesc1.cs" />
     <Compile Include="ParticleEmitter.cs" />
     <Compile Include="ParticleRandom.cs" />
     <Compile Include="ParticleSystem.cs" />
@@ -162,6 +145,7 @@
     <Compile Include="TextureAtlas.cs" />
     <Compile Include="TextureLoader.cs" />
     <Compile Include="TileMode.cs" />
+    <Compile Include="UI\ColorWConverter.cs" />
     <Compile Include="UI\HitMap.cs" />
     <Compile Include="UI\ITooltipTarget.cs" />
     <Compile Include="UI\MapRenderButtonStyle.cs" />
@@ -267,6 +251,23 @@
     <Content Include="Resources\UIWindow.img.ToolTip.WorldMap.Mob.png" />
     <Content Include="Resources\UIWindow.img.ToolTip.WorldMap.Npc.png" />
     <Content Include="Resources\UIWindow.img.ToolTip.WorldMap.StarForce.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ManagedBass">
+      <Version>3.1.0</Version>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="MonoGame.Framework.WindowsDX">
+      <Version>3.8.0.1641</Version>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpDX">
+      <Version>4.0.1</Version>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpDX.RawInput">
+      <Version>4.0.1</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

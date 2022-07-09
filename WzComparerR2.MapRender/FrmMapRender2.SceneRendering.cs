@@ -173,7 +173,12 @@ namespace WzComparerR2.MapRender
                     int currentFrame = (animator.Data as StateMachineAnimator.FrameStateMachineData)
                         .FrameAnimator
                         .CurrentFrameIndex;
-                    var raw = dict[currentState].Frames[currentFrame].BoundingBox.Value;
+                    var frame = dict[currentState].Frames[currentFrame];
+                    if (frame.BoundingBox == null)
+                    {
+                        return null;
+                    }
+                    var raw = frame.BoundingBox.Value;
                     return new Rectangle(life.X - (raw.Width / 2),
                         life.Cy - raw.Height,
                         raw.Width,
@@ -572,7 +577,7 @@ namespace WzComparerR2.MapRender
                     }
                 }
 
-            _pop:
+_pop:
                 if (sceneStack.Count > 0)
                 {
                     currNode = sceneStack.Pop();
@@ -614,6 +619,11 @@ namespace WzComparerR2.MapRender
 
         private MeshItem GetMesh(SceneItem item)
         {
+            if (item.Tags != null && item.Tags.Any(tag => !patchVisibility.IsTagVisible(tag)))
+            {
+                return null;
+            }
+
             if (item is BackItem)
             {
                 var back = (BackItem)item;

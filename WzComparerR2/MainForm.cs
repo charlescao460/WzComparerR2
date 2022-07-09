@@ -92,7 +92,7 @@ namespace WzComparerR2
             soundPlayer = new BassSoundPlayer();
             if (!soundPlayer.Init())
             {
-                Un4seen.Bass.BASSError error = soundPlayer.GetLastError();
+                ManagedBass.Errors error = soundPlayer.GetLastError();
                 MessageBoxEx.Show("Bass初始化失败！\r\n\r\nerrorCode : " + (int)error + "(" + error + ")", "虫子");
             }
             soundTimer = new Timer(120d);
@@ -171,6 +171,7 @@ namespace WzComparerR2
             Wz_Structure.DefaultEncoding = enc;
             Wz_Structure.DefaultAutoDetectExtFiles = config.AutoDetectExtFiles;
             Wz_Structure.DefaultImgCheckDisabled = config.ImgCheckDisabled;
+            Wz_Structure.DefaultWzVersionVerifyMode = config.WzVersionVerifyMode;
         }
 
         void CharaSimLoader_WzFileFinding(object sender, FindWzEventArgs e)
@@ -1301,7 +1302,7 @@ namespace WzComparerR2
             {
                 foreach (Wz_Node child in parent.Nodes)
                 {
-                    if (child.Value != null) //只过滤文件夹 未来有需求再改
+                    if (child.Nodes.Count == 0) //只过滤文件夹 未来有需求再改
                     {
                         continue;
                     }
@@ -2892,6 +2893,7 @@ namespace WzComparerR2
                     comparer.OutputPng = chkOutputPng.Checked;
                     comparer.OutputAddedImg = chkOutputAddedImg.Checked;
                     comparer.OutputRemovedImg = chkOutputRemovedImg.Checked;
+                    comparer.EnableDarkMode = chkEnableDarkMode.Checked;
                     comparer.StateInfoChanged += new EventHandler(comparer_StateInfoChanged);
                     comparer.StateDetailChanged += new EventHandler(comparer_StateDetailChanged);
                     try

@@ -49,6 +49,11 @@ namespace WzComparerR2.MapRender.Patches2
                 Flip = node.Nodes["f"].GetValueEx(false),
                 IsFront = node.Nodes["front"].GetValueEx(false),
             };
+            string backTags = node.Nodes["backTags"].GetValueEx<string>(null);
+            if (!string.IsNullOrWhiteSpace(backTags))
+            {
+                item.Tags = backTags.Split(',').Select(tag => tag.Trim()).ToArray();
+            }
             return item;
         }
 

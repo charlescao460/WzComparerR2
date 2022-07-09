@@ -31,6 +31,8 @@ namespace WzComparerR2.MapRender
         {
             graphics = new GraphicsDeviceManager(this);
             graphics.DeviceCreated += Graphics_DeviceCreated;
+            graphics.DeviceResetting += Graphics_DeviceResetting;
+
             this.mapImg = img;
             this.MaxElapsedTime = TimeSpan.MaxValue;
             this.IsFixedTimeStep = false;
@@ -102,7 +104,12 @@ namespace WzComparerR2.MapRender
             WcR2Engine.FixEKBugs();
 
             (this.engine.AssetManager as WcR2AssetManager).DefaultContentManager = this.Content as WcR2ContentManager;
-            
+        }
+
+        private void Graphics_DeviceResetting(object sender, EventArgs e)
+        {
+            // fix DXGI error 0x887A0001 on gamewindow resizing
+            WzComparerR2.Rendering.D2DFactory.Instance.ReleaseContext(graphics.GraphicsDevice);
         }
 
         public StringLinker StringLinker { get; set; }
@@ -303,9 +310,15 @@ namespace WzComparerR2.MapRender
                 };
 
                 EmptyKeys.UserInterface.Input.KeyEventHandler keyEv;
+                var keyApplied = new Dictionary<KeyCode, bool>();
 
                 keyEv = (o, e) =>
                 {
+                    if (EmptyKeys.UserInterface.Input.InputManager.Current.FocusedElement is EmptyKeys.UserInterface.Controls.Primitives.TextBoxBase)
+                    {
+                        return;
+                    }
+
                     switch (e.Key)
                     {
                         case KeyCode.Up:
@@ -327,15 +340,31 @@ namespace WzComparerR2.MapRender
                         case KeyCode.RightControl:
                             boostMoveFlag |= 0x02;
                             break;
+
+                        default:
+                            return;
                     }
+                    keyApplied[e.Key] = true;
+                    e.Handled = true;
                 };
-                this.ui.KeyDown += keyEv;
-                this.attachedEvent.Add(EventDisposable(keyEv, _ev => this.ui.KeyDown -= _ev));
+                this.ui.PreviewKeyDown += keyEv;
+                this.attachedEvent.Add(EventDisposable(keyEv, _ev => this.ui.PreviewKeyDown -= _ev));
 
                 keyEv = (o, e) =>
                 {
                     switch (e.Key)
                     {
+                        case KeyCode.Up:
+                        case KeyCode.Down:
+                        case KeyCode.Left:
+                        case KeyCode.Right:
+                            if (keyApplied.TryGetValue(e.Key, out bool pressed) && pressed)
+                            {
+                                keyApplied[e.Key] = false;
+                                e.Handled = true;
+                            }
+                            break;
+
                         case KeyCode.LeftControl:
                             boostMoveFlag &= ~0x01;
                             break;
@@ -512,6 +541,8 @@ namespace WzComparerR2.MapRender
                     this.ui.ChatBox.AppendTextHelp(@"/back 回到上一地图。");
                     this.ui.ChatBox.AppendTextHelp(@"/home 回城。");
                     this.ui.ChatBox.AppendTextHelp(@"/history [maxCount] 查看历史地图。");
+                    this.ui.ChatBox.AppendTextHelp(@"/minimap 设置迷你地图状态。");
+                    this.ui.ChatBox.AppendTextHelp(@"/scene 设置地图场景显示状态。");
                     break;
 
                 case "/map":
@@ -570,6 +601,132 @@ namespace WzComparerR2.MapRender
                         
                         node = node.Previous;
                         historyCount--;
+                    }
+                    break;
+
+                case "/minimap":
+                    var canvasList = this.mapData?.MiniMap?.ExtraCanvas;
+                    switch (arguments.ElementAtOrDefault(1))
+                    {
+                        case "list":
+                            this.ui.ChatBox.AppendTextHelp($"minimap: {string.Join(", ", canvasList?.Keys)}");
+                            break;
+
+                        case "set":
+                            string canvasName = arguments.ElementAtOrDefault(2);
+                            if (canvasList != null && canvasList.TryGetValue(canvasName, out Texture2D canvas))
+                            {
+                                this.ui.Minimap.MinimapCanvas = engine.Renderer.CreateTexture(canvas);
+                                this.ui.ChatBox.AppendTextHelp($"设置迷你地图：{canvasName}");
+                            }
+                            else
+                            {
+                                this.ui.ChatBox.AppendTextSystem($"找不到迷你地图：{canvasName}");
+                            }
+                            break;
+
+                        default:
+                            this.ui.ChatBox.AppendTextHelp(@"/minimap list 显示所有迷你地图名称。");
+                            this.ui.ChatBox.AppendTextHelp(@"/minimap set (canvasName) 设置迷你地图。");
+                            break;
+                    }
+                    break;
+
+                case "/scene":
+                    switch (arguments.ElementAtOrDefault(1))
+                    {
+                        case "tag":
+                            switch (arguments.ElementAtOrDefault(2))
+                            {
+                                case "list":
+                                    var mapTags = GetSceneContainers(this.mapData?.Scene)
+                                        .SelectMany(container => container.Slots)
+                                        .Where(sceneItem => sceneItem.Tags != null && sceneItem.Tags.Length > 0)
+                                        .SelectMany(sceneItem => sceneItem.Tags)
+                                        .Distinct()
+                                        .OrderBy(tag => tag)
+                                        .ToList();
+                                    this.ui.ChatBox.AppendTextHelp($"当前地图tags: {string.Join(", ", mapTags)}");
+                                    break;
+                                case "info":
+                                    var visibleTags = this.patchVisibility.TagsVisible.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
+                                    var hiddenTags = this.patchVisibility.TagsVisible.Where(kv => !kv.Value).Select(kv => kv.Key).ToList();
+                                    this.ui.ChatBox.AppendTextHelp($"默认tag显示状态: {this.patchVisibility.DefaultTagVisible}");
+                                    this.ui.ChatBox.AppendTextHelp($"显示tags: {string.Join(", ", visibleTags)}");
+                                    this.ui.ChatBox.AppendTextHelp($"隐藏tags: {string.Join(", ", hiddenTags)}");
+                                    break;
+                                case "show":
+                                    string[] tags = arguments.Skip(3).ToArray();
+                                    if (tags.Length > 0)
+                                    {
+                                        foreach (var tag in tags)
+                                        {
+                                            this.patchVisibility.SetTagVisible(tag, true);
+                                        }
+                                        this.ui.ChatBox.AppendTextHelp($"显示tag: {string.Join(", ", tags)}");
+                                    }
+                                    else
+                                    {
+                                        this.ui.ChatBox.AppendTextSystem("没有输入tagName。");
+                                    }
+                                    break;
+                                case "hide":
+                                    tags = arguments.Skip(3).ToArray();
+                                    if (tags.Length > 0)
+                                    {
+                                        foreach (var tag in tags)
+                                        {
+                                            this.patchVisibility.SetTagVisible(tag, false);
+                                        }
+                                        this.ui.ChatBox.AppendTextHelp($"隐藏tag: {string.Join(", ", tags)}");
+                                    }
+                                    else
+                                    {
+                                        this.ui.ChatBox.AppendTextSystem("没有输入tagName。");
+                                    }
+                                    break;
+                                case "reset":
+                                    tags = arguments.Skip(3).ToArray();
+                                    if (tags.Length > 0)
+                                    {
+                                        this.patchVisibility.ResetTagVisible(tags);
+                                        this.ui.ChatBox.AppendTextHelp($"重置tag: {string.Join(", ", tags)}");
+                                    }
+                                    else
+                                    {
+                                        this.ui.ChatBox.AppendTextSystem("没有输入tagName。");
+                                    }
+                                    break;
+                                case "reset-all":
+                                    this.patchVisibility.ResetTagVisible();
+                                    this.ui.ChatBox.AppendTextHelp($"重置已设置tag。");
+                                    break;
+                                case "set-default":
+                                    if (bool.TryParse(arguments.ElementAtOrDefault(3), out bool isVisible))
+                                    {
+                                        this.patchVisibility.DefaultTagVisible = isVisible;
+                                        this.ui.ChatBox.AppendTextHelp($"设置tag默认显示状态：{isVisible}");
+                                    }
+                                    else
+                                    {
+                                        this.ui.ChatBox.AppendTextSystem("参数错误。");
+                                    }
+                                    break;
+                                default:
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag list 获取场景中所有物体的tag。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag info 获取当前自定义显示状态。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag show (tagName)... 显示tagName的物体。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag hide (tagName)... 隐藏tagName的物体。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag reset (tagName)... 重置指定tagName的显示状态。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag reset-all 重置所有物体为显示状态。");
+                                    this.ui.ChatBox.AppendTextHelp(@"/scene tag set-default (true/false) 设置所有tag的默认显示状态。");
+                                    break;
+                            }
+                            break;
+
+                        default:
+                            this.ui.ChatBox.AppendTextHelp(@"/scene tag 设置tag相关的显示状态。");
+                            break;
                     }
                     break;
 
@@ -653,7 +810,14 @@ namespace WzComparerR2.MapRender
             this.renderEnv.Camera.UseWorldRect = true;
 
             var target2d = new RenderTarget2D(this.GraphicsDevice, width, height, false, SurfaceFormat.Bgra32, DepthFormat.None);
-            
+
+            Color bgColor = Color.Black;
+            var config = MapRenderConfig.Default;
+            if (ColorWConverter.TryParse(config?.ScreenshotBackgroundColor?.Value, out var colorW))
+            {
+                bgColor = new Color(colorW.PackedValue);
+            }
+
             //计算一组截图区
             int horizonBlock = (int)Math.Ceiling(1.0 * oldRect.Width / width);
             int verticalBlock = (int)Math.Ceiling(1.0 * oldRect.Height / height);
@@ -671,7 +835,7 @@ namespace WzComparerR2.MapRender
 
                     //绘制
                     GraphicsDevice.SetRenderTarget(target2d);
-                    GraphicsDevice.Clear(Color.Black);
+                    GraphicsDevice.Clear(bgColor);
                     DrawScene(gameTime);
                     GraphicsDevice.SetRenderTarget(null);
                     //保存
@@ -789,6 +953,7 @@ namespace WzComparerR2.MapRender
             model.NpcNameVisible = this.patchVisibility.NpcNameVisible;
             model.MobNameVisible = this.patchVisibility.MobNameVisible;
             model.TopBarVisible = this.ui.TopBar.Visibility == EmptyKeys.UserInterface.Visibility.Visible;
+            model.ScreenshotBackgroundColor = config.ScreenshotBackgroundColor;
             model.Minimap_CameraRegionVisible = this.ui.Minimap.CameraRegionVisible;
             model.WorldMap_UseImageNameAsInfoName = this.ui.WorldMap.UseImageNameAsInfoName;
         }
@@ -805,6 +970,7 @@ namespace WzComparerR2.MapRender
             this.patchVisibility.NpcNameVisible = model.NpcNameVisible;
             this.patchVisibility.MobNameVisible = model.MobNameVisible;
             config.TopBarVisible = model.TopBarVisible;
+            config.ScreenshotBackgroundColor = model.ScreenshotBackgroundColor;
             config.Minimap_CameraRegionVisible = model.Minimap_CameraRegionVisible;
             config.WorldMap_UseImageNameAsInfoName = model.WorldMap_UseImageNameAsInfoName;
             WzComparerR2.Config.ConfigManager.Save();
@@ -867,7 +1033,6 @@ namespace WzComparerR2.MapRender
             {
                 this.UnloadContent();
                 this.OnExiting();
-                GameExt.DisposeSwapChain(this.GraphicsDevice);
             }
             base.Dispose(disposing);
         }

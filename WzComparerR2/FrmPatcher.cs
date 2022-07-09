@@ -217,6 +217,7 @@ namespace WzComparerR2
             {
                 patcher = new WzPatcher(patchFile);
                 patcher.PatchingStateChanged += new EventHandler<PatchingEventArgs>(patcher_PatchingStateChanged);
+                AppendStateText($"补丁文件：{patchFile}\r\n");
                 AppendStateText("正在检查补丁...");
                 patcher.OpenDecompress();
                 AppendStateText("成功\r\n");
@@ -264,6 +265,11 @@ namespace WzComparerR2
             catch (ThreadAbortException)
             {
                 MessageBoxEx.Show("补丁中止。", "Patcher");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // File IO permission error
+                MessageBoxEx.Show(this, ex.ToString(), "Patcher");
             }
             catch (Exception ex)
             {
@@ -333,6 +339,7 @@ namespace WzComparerR2
                             comparer.OutputPng = chkOutputPng.Checked;
                             comparer.OutputAddedImg = chkOutputAddedImg.Checked;
                             comparer.OutputRemovedImg = chkOutputRemovedImg.Checked;
+                            comparer.EnableDarkMode = chkEnableDarkMode.Checked;
                             comparer.Comparer.PngComparison = (WzPngComparison)cmbComparePng.SelectedItem;
                             comparer.Comparer.ResolvePngLink = chkResolvePngLink.Checked;
                             wznew.Load(e.Part.TempFilePath, false);

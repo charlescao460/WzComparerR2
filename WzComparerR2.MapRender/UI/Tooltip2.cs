@@ -89,6 +89,10 @@ namespace WzComparerR2.MapRender.UI
             {
                 return DrawItem(gameTime, env, (PortalItem)target);
             }
+            else if (target is IlluminantClusterItem)
+            {
+                return DrawItem(gameTime, env, (IlluminantClusterItem)target);
+            }
             else if (target is ReactorItem)
             {
                 return DrawItem(gameTime, env, (ReactorItem)target);
@@ -203,6 +207,19 @@ namespace WzComparerR2.MapRender.UI
             if (!string.IsNullOrEmpty(item.Script))
             {
                 sb.Append("script: ").AppendLine(item.Script);
+
+                //Graph.img에 따른 이동경로 출력
+                if (item.GraphTargetMap.Count > 0)
+                {
+                    sb.Append("scriptMap: ");
+                    foreach (var targetMapID in item.GraphTargetMap)
+                    {
+                        sb.Append(targetMapID);
+                        this.StringLinker?.StringMap.TryGetValue(targetMapID, out sr);
+                        string toMapName = sr?.Name;
+                        sb.Append("(").Append(sr?.Name ?? "null").AppendLine(")");
+                    }
+                }
             }
 
             sb.Length -= 2;
@@ -211,6 +228,26 @@ namespace WzComparerR2.MapRender.UI
             size.Y = current.Y;
             return new TooltipContent() { blocks = blocks, size = size };
         }
+
+        private TooltipContent DrawItem(GameTime gameTime, RenderEnv env, IlluminantClusterItem item)
+        {
+            var blocks = new List<TextBlock>();
+            Vector2 size = Vector2.Zero;
+            StringResult sr = null;
+            Vector2 current = Vector2.Zero;
+
+            var sb = new StringBuilder();
+            sb.Append("Name: ").AppendLine(item.Name);
+
+            sb.AppendLine("Type: 发光体群落");
+
+            sb.Length -= 2;
+
+            blocks.Add(PrepareTextLine(env.Fonts.TooltipContentFont, sb.ToString(), ref current, Color.White, ref size.X));
+            size.Y = current.Y;
+            return new TooltipContent() { blocks = blocks, size = size };
+        }
+
 
         private TooltipContent DrawItem(GameTime gameTime, RenderEnv env, ReactorItem item)
         {
@@ -277,7 +314,6 @@ namespace WzComparerR2.MapRender.UI
                 int spotBarrier = 0, spotBarrierArc = 0, spotBarrierAut = 0;
                 var mobNames = new List<string>();
                 var npcNames = new List<string>();
-                int minLevel = 0, maxLevel = 0;
 
                 if (!spot.NoTooltip)
                 {
@@ -327,16 +363,7 @@ namespace WzComparerR2.MapRender.UI
                             var mobLevel = PluginManager.FindWz(string.Format("Mob/{0:D7}.img/info/level", mobID)).GetValueEx<int>(0);
                             string mobText = sr != null ? string.Format("{0}(Lv.{1})", sr.Name, mobLevel) : mobID.ToString();
                             mobNames.Add(mobText);
-                            if (mobLevel > 0)
-                            {
-                                if (minLevel > 0) minLevel = Math.Min(minLevel, mobLevel);
-                                else minLevel = mobLevel;
-                                if (maxLevel > 0) maxLevel = Math.Max(maxLevel, mobLevel);
-                                else maxLevel = mobLevel;
-                            }
                         }
-                        minLevel = Math.Max(10, minLevel - 3);
-                        maxLevel = Math.Max(10, maxLevel - 2);
                     }
                     if (npcs.Count > 0)
                     {
@@ -444,19 +471,6 @@ namespace WzComparerR2.MapRender.UI
                 if (mobNames.Count > 0)
                 {
                     part3 = new List<object>();
-
-                    //绘制分割线
-                    lines.Add(new TextureBlock(line, new Rectangle(current.ToPoint(), Point.Zero)));
-                    current.Y += 8;
-
-                    //推荐等级
-                    current.X = 15;
-                    part3.Add(PrepareTextBlock(font,
-                        string.Format("推荐等级 : Lv.{0} ~ Lv.{1}", minLevel, maxLevel),
-                        ref current, new Color(119, 204, 255)));
-                    size.X = Math.Max(size.X, current.X);
-                    current.X = 0;
-                    current.Y += 18;
 
                     //绘制分割线
                     lines.Add(new TextureBlock(line, new Rectangle(current.ToPoint(), Point.Zero)));

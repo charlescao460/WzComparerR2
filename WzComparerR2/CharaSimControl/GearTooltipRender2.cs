@@ -417,8 +417,14 @@ namespace WzComparerR2.CharaSimControl
             //  if (gear.Props.TryGetValue(GearPropType.attackSpeed, out value) && value > 0)
             if (value > 0)
             {
-                g.DrawString("攻击速度 : " + ItemStringHelper.GetAttackSpeedString(value) + (ShowSpeed ? (" (" + value + ")") : null),
-                    GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
+                bool isValidSpeed = (2 <= value && value <= 9);
+                string speedStr = string.Format("攻击速度 : {0}{1}{2}",
+                    ItemStringHelper.GetAttackSpeedString(value),
+                    isValidSpeed ? $"（{10 - value}阶段）" : null,
+                    ShowSpeed ? $"({value})" : null
+                );
+
+                g.DrawString(speedStr, GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
                 picH += 16;
                 hasPart2 = true;
             }
@@ -483,7 +489,11 @@ namespace WzComparerR2.CharaSimControl
             }
             else if (hasTuc)
             {
-                GearGraphics.DrawString(g, "可升级次数 : " + value + "回 #c（可修复次数：0）#", GearGraphics.ItemDetailFont, 13, 256, ref picH, 16);
+                var colorTable = new Dictionary<string, Color>
+                {
+                    { "c", GearGraphics.OrangeBrush3Color }
+                };
+                GearGraphics.DrawString(g, "可升级次数 : " + value + "回 #c（可修复次数：0）#", GearGraphics.ItemDetailFont, colorTable, 13, 256, ref picH, 16);
                 hasPart2 = true;
             }
 
@@ -500,6 +510,13 @@ namespace WzComparerR2.CharaSimControl
                     g.DrawString(ItemStringHelper.GetGearPropString(GearPropType.superiorEqp, value), GearGraphics.ItemDetailFont, GearGraphics.GreenBrush2, 11, picH);
                     picH += 16;
                 }
+            }
+
+            if (Gear.Props.TryGetValue(GearPropType.CuttableCount, out value) && value > 0) //可使用剪刀
+            {
+                g.DrawString(ItemStringHelper.GetGearPropString(GearPropType.CuttableCount, value), GearGraphics.ItemDetailFont, GearGraphics.OrangeBrush3, 11, picH);
+                picH += 16;
+                hasPart2 = true;
             }
 
             if (Gear.Props.TryGetValue(GearPropType.limitBreak, out value) && value > 0) //突破上限
@@ -643,6 +660,18 @@ namespace WzComparerR2.CharaSimControl
                 picH += 5;
             }
 
+            if (Gear.Props.TryGetValue(GearPropType.Etuc, out value) && value > 0)
+            {
+                //分割线5号
+                if (hasPart2)
+                {
+                    g.DrawImage(res["dotline"].Image, 0, picH);
+                    picH += 8;
+                }
+                g.DrawString(ItemStringHelper.GetGearPropString(GearPropType.Etuc, value), GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
+                picH += 23;
+            }
+
             //绘制desc
             List<string> desc = new List<string>();
             GearPropType[] descTypes = new GearPropType[]{
@@ -662,7 +691,7 @@ namespace WzComparerR2.CharaSimControl
             //绘制倾向
             if (Gear.State == GearState.itemList)
             {
-                string incline = null;
+                StringBuilder incline = new StringBuilder();
                 GearPropType[] inclineTypes = new GearPropType[]{
                     GearPropType.charismaEXP,
                     GearPropType.senseEXP,
@@ -678,13 +707,17 @@ namespace WzComparerR2.CharaSimControl
                 {
                     if (Gear.Props.TryGetValue(inclineTypes[i], out value) && value > 0)
                     {
-                        incline += "，" + inclineString[i] + value;
+                        if (incline.Length > 0)
+                        {
+                            incline.Append(", ");
+                        }
+                        incline.Append(inclineString[i]).Append(value);
                     }
                 }
 
-                if (!string.IsNullOrEmpty(incline))
+                if (incline.Length > 0)
                 {
-                    desc.Add("\n #c装备时可以获得" + incline.Substring(1) + "的经验值，仅限1次。#");
+                    desc.Add($"\n #c装备时限1次获得{incline}的经验值.(每天限制,超过最大值时除外)#");
                 }
             }
 

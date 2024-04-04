@@ -8,6 +8,14 @@ using System.Text.RegularExpressions;
 
 namespace WzComparerR2.WzLib
 {
+    public enum Wz_CryptoKeyType
+    {
+        Unknown = 0,
+        BMS = 1,
+        KMS = 2,
+        GMS = 3
+    }
+
     public class Wz_Crypto
     {
         public Wz_Crypto()
@@ -157,7 +165,9 @@ namespace WzComparerR2.WzLib
 
         private bool IsLegalNodeName(string nodeName)
         {
-            return nodeName.EndsWith(".img") || nodeName.EndsWith(".lua") || Regex.IsMatch(nodeName, @"^[A-Za-z0-9_]+$");
+            // MSEA 225 has a node in Base.wz named "Base,Character,Effect,Etc,Item,Map,Mob,Morph,Npc,Quest,Reactor,Skill,Sound,String,TamingMob,UI"
+            // It is so funny but wzlib have to be compatible with it.
+            return nodeName.EndsWith(".img") || nodeName.EndsWith(".lua") || Regex.IsMatch(nodeName, @"^[A-Za-z0-9_,]+$");
         }
 
         static readonly byte[] iv_gms = { 0x4d, 0x23, 0xc7, 0x2b };
@@ -178,34 +188,21 @@ namespace WzComparerR2.WzLib
             get { return enc_type; }
             set
             {
+                this.keys = this.GetKeys(value);
                 enc_type = value;
-                switch (enc_type)
-                {
-                    case Wz_CryptoKeyType.Unknown:
-                        this.keys = null;
-                        break;
-
-                    case Wz_CryptoKeyType.BMS:
-                        this.keys = keys_bms;
-                        break;
-
-                    case Wz_CryptoKeyType.KMS:
-                        this.keys = keys_kms;
-                        break;
-
-                    case Wz_CryptoKeyType.GMS:
-                        this.keys = keys_gms;
-                        break;
-                }
             }
         }
 
-        public enum Wz_CryptoKeyType
+        public Wz_CryptoKey GetKeys(Wz_CryptoKeyType keyType)
         {
-            Unknown = 0,
-            BMS = 1,
-            KMS = 2,
-            GMS = 3
+            switch (keyType)
+            {
+                case Wz_CryptoKeyType.Unknown: return null;
+                case Wz_CryptoKeyType.BMS: return this.keys_bms;
+                case Wz_CryptoKeyType.KMS: return this.keys_kms;
+                case Wz_CryptoKeyType.GMS: return this.keys_gms;
+                default: throw new ArgumentOutOfRangeException(nameof(keyType));
+            }
         }
 
         public class Wz_CryptoKey
@@ -250,7 +247,7 @@ namespace WzComparerR2.WzLib
                     return;
                 }
 
-                size = (int)Math.Ceiling(1.0 * size / 4096) * 4096;
+                size = (int)Math.Ceiling(1.0 * size / 64) * 64;
                 int startIndex = 0;
 
                 if (this.keys == null)
@@ -263,7 +260,7 @@ namespace WzComparerR2.WzLib
                     Array.Resize(ref this.keys, size);
                 }
 
-                Rijndael aes = Rijndael.Create();
+                var aes = Aes.Create();
                 aes.KeySize = 256;
                 aes.BlockSize = 128;
                 aes.Key = aesKey;

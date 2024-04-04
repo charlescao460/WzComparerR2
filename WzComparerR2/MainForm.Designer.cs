@@ -169,6 +169,7 @@
             this.labelItemAutoSaveFolder = new DevComponents.DotNetBar.LabelItem();
             this.buttonItemGif = new DevComponents.DotNetBar.ButtonItem();
             this.itemContainer36 = new DevComponents.DotNetBar.ItemContainer();
+            this.buttonItemExtractGifEx = new DevComponents.DotNetBar.ButtonItem();
             this.buttonItemGifSetting = new DevComponents.DotNetBar.ButtonItem();
             this.textBoxX1 = new DevComponents.DotNetBar.Controls.TextBoxX();
             this.expandableSplitter1 = new DevComponents.DotNetBar.ExpandableSplitter();
@@ -199,6 +200,7 @@
             this.superTabControlPanel2 = new DevComponents.DotNetBar.SuperTabControlPanel();
             this.chkResolvePngLink = new DevComponents.DotNetBar.Controls.CheckBoxX();
             this.chkEnableDarkMode = new DevComponents.DotNetBar.Controls.CheckBoxX();
+            this.superTooltip1 = new DevComponents.DotNetBar.SuperTooltip();
             this.chkOutputRemovedImg = new DevComponents.DotNetBar.Controls.CheckBoxX();
             this.chkOutputAddedImg = new DevComponents.DotNetBar.Controls.CheckBoxX();
             this.labelX1 = new DevComponents.DotNetBar.LabelX();
@@ -248,6 +250,7 @@
             this.dockSite3 = new DevComponents.DotNetBar.DockSite();
             this.dockContainerItem2 = new DevComponents.DotNetBar.DockContainerItem();
             this.panelDockContainer2 = new DevComponents.DotNetBar.PanelDockContainer();
+            this.chkHashPngFileName = new DevComponents.DotNetBar.Controls.CheckBoxX();
             this.btnItemOpenImg = new DevComponents.DotNetBar.ButtonItem();
             this.buttonItemSaveWithOptions = new DevComponents.DotNetBar.ButtonItem();
             this.ribbonControl1.SuspendLayout();
@@ -2022,11 +2025,19 @@
             this.itemContainer36.LayoutOrientation = DevComponents.DotNetBar.eOrientation.Vertical;
             this.itemContainer36.Name = "itemContainer36";
             this.itemContainer36.SubItems.AddRange(new DevComponents.DotNetBar.BaseItem[] {
+            this.buttonItemExtractGifEx,
             this.buttonItemGifSetting});
             // 
             // 
             // 
             this.itemContainer36.TitleStyle.CornerType = DevComponents.DotNetBar.eCornerType.Square;
+            //
+            // buttonItemExtractGifEx
+            //
+            this.buttonItemExtractGifEx.Name = "buttonItemExtractGifEx";
+            this.buttonItemExtractGifEx.Text = "ExtractGifEx";
+            this.buttonItemExtractGifEx.Tooltip = "对所选节点的全部子节点提取帧动画，而不使用序数节点名称。";
+            this.buttonItemExtractGifEx.Click += new System.EventHandler(this.buttonItemGif_Click);
             // 
             // buttonItemGifSetting
             // 
@@ -2303,6 +2314,7 @@
             // 
             // superTabControlPanel2
             // 
+            this.superTabControlPanel2.Controls.Add(this.chkHashPngFileName);
             this.superTabControlPanel2.Controls.Add(this.chkEnableDarkMode);
             this.superTabControlPanel2.Controls.Add(this.chkResolvePngLink);
             this.superTabControlPanel2.Controls.Add(this.chkOutputRemovedImg);
@@ -2330,6 +2342,7 @@
             this.chkResolvePngLink.Name = "chkResolvePngLink";
             this.chkResolvePngLink.Size = new System.Drawing.Size(107, 23);
             this.chkResolvePngLink.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkResolvePngLink, new DevComponents.DotNetBar.SuperTooltipInfo("ResolvePngLink", "", "对比报告中是否智能解析对比被Link的图片\r\n这会过滤掉无用的变更内容", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 90)));
             this.chkResolvePngLink.TabIndex = 9;
             this.chkResolvePngLink.Text = "ResolvePngLink";
             // 
@@ -2341,8 +2354,9 @@
             this.chkEnableDarkMode.BackgroundStyle.CornerType = DevComponents.DotNetBar.eCornerType.Square;
             this.chkEnableDarkMode.Location = new System.Drawing.Point(280, 61);
             this.chkEnableDarkMode.Name = "chkEnableDarkMode";
-            this.chkEnableDarkMode.Size = new System.Drawing.Size(135, 23);
+            this.chkEnableDarkMode.Size = new System.Drawing.Size(115, 23);
             this.chkEnableDarkMode.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkEnableDarkMode, new DevComponents.DotNetBar.SuperTooltipInfo("EnableDarkMode", "", "将比对结果以暗黑模式 HTML 输出", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkEnableDarkMode.TabIndex = 9;
             this.chkEnableDarkMode.Text = "EnableDarkMode";
             // 
@@ -2356,6 +2370,7 @@
             this.chkOutputRemovedImg.Name = "chkOutputRemovedImg";
             this.chkOutputRemovedImg.Size = new System.Drawing.Size(135, 23);
             this.chkOutputRemovedImg.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkOutputRemovedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputRemovedImg", "", "对比报告中是否输出被整体移除的Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputRemovedImg.TabIndex = 8;
             this.chkOutputRemovedImg.Text = "OutputRemovedImg";
             // 
@@ -2369,6 +2384,7 @@
             this.chkOutputAddedImg.Name = "chkOutputAddedImg";
             this.chkOutputAddedImg.Size = new System.Drawing.Size(135, 23);
             this.chkOutputAddedImg.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkOutputAddedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputAddedImg", "", "对比报告中是否输出新增Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputAddedImg.TabIndex = 7;
             this.chkOutputAddedImg.Text = "OutputAddedImg";
             // 
@@ -2398,6 +2414,7 @@
             this.chkOutputPng.Name = "chkOutputPng";
             this.chkOutputPng.Size = new System.Drawing.Size(107, 23);
             this.chkOutputPng.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkOutputPng, new DevComponents.DotNetBar.SuperTooltipInfo("OutputPngFile", "", "对比报告中是否输出有差异的图片文件。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputPng.TabIndex = 5;
             this.chkOutputPng.Text = "OutputPngFile";
             // 
@@ -2412,6 +2429,8 @@
             this.cmbComparePng.Name = "cmbComparePng";
             this.cmbComparePng.Size = new System.Drawing.Size(120, 21);
             this.cmbComparePng.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.cmbComparePng, new DevComponents.DotNetBar.SuperTooltipInfo("PngComparison", "", "对于对比报告中图片的对比方式。\r\nSizeOnly - 仅对比图片大小，可能会遗漏。\r\nSizeAndDataLength - 同时对比图片大小和压缩流长度，可能" +
+            "会误判。\r\nPixel - 像素级对比，非常精确但可能略耗时。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, true, new System.Drawing.Size(300, 130)));
             this.cmbComparePng.TabIndex = 4;
             // 
             // labelXComp2
@@ -2920,6 +2939,20 @@
             this.panelDockContainer2.Style.GradientAngle = 90;
             this.panelDockContainer2.TabIndex = 2;
             // 
+            // chkHashPngFileName
+            // 
+            // 
+            // 
+            // 
+            this.chkHashPngFileName.BackgroundStyle.CornerType = DevComponents.DotNetBar.eCornerType.Square;
+            this.chkHashPngFileName.Location = new System.Drawing.Point(391, 61);
+            this.chkHashPngFileName.Name = "chkHashPngFileName";
+            this.chkHashPngFileName.Size = new System.Drawing.Size(115, 23);
+            this.chkHashPngFileName.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.superTooltip1.SetSuperTooltip(this.chkHashPngFileName, new DevComponents.DotNetBar.SuperTooltipInfo("HashPngFileName", "", "以 MD5 校验值输出 PNG 文件名称", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
+            this.chkHashPngFileName.TabIndex = 10;
+            this.chkHashPngFileName.Text = "HashPngFileName";
+            // 
             // MainForm
             // 
             this.ClientSize = new System.Drawing.Size(750, 512);
@@ -3111,6 +3144,7 @@
         private DevComponents.DotNetBar.ItemContainer itemContainer35;
         private DevComponents.DotNetBar.ButtonItem buttonItemGif;
         private DevComponents.DotNetBar.ItemContainer itemContainer36;
+        private DevComponents.DotNetBar.ButtonItem buttonItemExtractGifEx;
         private DevComponents.DotNetBar.ButtonItem buttonItemGifSetting;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip2;
         private System.Windows.Forms.ToolStripMenuItem tsmi2ExpandAll;
@@ -3188,6 +3222,8 @@
         private DevComponents.DotNetBar.ButtonItem buttonItemSaveWithOptions;
         private DevComponents.DotNetBar.CheckBoxItem checkBoxItemRegex1;
         private DevComponents.DotNetBar.CheckBoxItem checkBoxItemRegex2;
+        private DevComponents.DotNetBar.SuperTooltip superTooltip1;
         private DevComponents.DotNetBar.Controls.CheckBoxX chkEnableDarkMode;
+        private DevComponents.DotNetBar.Controls.CheckBoxX chkHashPngFileName;
     }
 }

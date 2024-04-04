@@ -31,12 +31,19 @@ namespace WzComparerR2.MapRender
         public ContainerNode Effect { get; private set; }
 
         public IEnumerable<PortalItem> Portals => this.Fly.Portal.Slots.OfType<PortalItem>();
+        public IEnumerable<IlluminantClusterItem> IlluminantClusters => this.Fly.IlluminantCluster.Slots.OfType<IlluminantClusterItem>();
         public IEnumerable<LifeItem> Npcs => this.Layers.Nodes.OfType<LayerNode>()
             .SelectMany(layerNode => layerNode.Foothold.Nodes).OfType<ContainerNode<FootholdItem>>()
             .SelectMany(fhNode => fhNode.Slots).OfType<LifeItem>()
             .Where(lifeNode => lifeNode.Type == LifeItem.LifeType.Npc && !lifeNode.Hide)
             .Concat(this.Fly.Sky.Slots.OfType<LifeItem>()
             .Where(lifeNode => lifeNode.Type == LifeItem.LifeType.Npc && !lifeNode.Hide));
+        public IEnumerable<LifeItem> Mobs => this.Layers.Nodes.OfType<LayerNode>()
+                    .SelectMany(layerNode => layerNode.Foothold.Nodes).OfType<ContainerNode<FootholdItem>>()
+                    .SelectMany(fhNode => fhNode.Slots).OfType<LifeItem>()
+                    .Where(lifeNode => lifeNode.Type == LifeItem.LifeType.Mob && !lifeNode.Hide)
+                    .Concat(this.Fly.Sky.Slots.OfType<LifeItem>()
+                    .Where(lifeNode => lifeNode.Type == LifeItem.LifeType.Mob && !lifeNode.Hide));
 
         public PortalItem FindPortal(string pName)
         {
@@ -73,6 +80,7 @@ namespace WzComparerR2.MapRender
                 LadderRope = new ContainerNode(),
                 Sky = new ContainerNode(),
                 SkyWhale = new ContainerNode(),
+                IlluminantCluster = new ContainerNode(),
             });
         }
 
@@ -84,6 +92,7 @@ namespace WzComparerR2.MapRender
         /// </summary>
         public ContainerNode Sky { get; private set; }
         public ContainerNode SkyWhale { get; private set; }
+        public ContainerNode IlluminantCluster { get; private set; }
     }
 
     public class ContainerNode : SceneNode

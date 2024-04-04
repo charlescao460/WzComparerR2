@@ -30,7 +30,6 @@
         {
             this.comboBoxEx1 = new DevComponents.DotNetBar.Controls.ComboBoxEx();
             this.integerInput1 = new DevComponents.Editors.IntegerInput();
-            this.integerInput2 = new DevComponents.Editors.IntegerInput();
             this.txtUrl = new DevComponents.DotNetBar.Controls.TextBoxX();
             this.buttonXPatch = new DevComponents.DotNetBar.ButtonX();
             this.chkDeadPatch = new DevComponents.DotNetBar.Controls.CheckBoxX();
@@ -42,6 +41,7 @@
             this.txtPatchFile = new DevComponents.DotNetBar.Controls.TextBoxX();
             this.labelX1 = new DevComponents.DotNetBar.LabelX();
             this.expandablePanel1 = new DevComponents.DotNetBar.ExpandablePanel();
+            this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.buttonXCheck = new DevComponents.DotNetBar.ButtonX();
             this.expandablePanel2 = new DevComponents.DotNetBar.ExpandablePanel();
             this.chkEnableDarkMode = new DevComponents.DotNetBar.Controls.CheckBoxX();
@@ -83,8 +83,8 @@
             this.superTooltip1 = new DevComponents.DotNetBar.SuperTooltip();
             this.chkResolvePngLink = new DevComponents.DotNetBar.Controls.CheckBoxX();
             ((System.ComponentModel.ISupportInitialize)(this.integerInput1)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.integerInput2)).BeginInit();
             this.expandablePanel1.SuspendLayout();
+            this.flowLayoutPanel1.SuspendLayout();
             this.expandablePanel2.SuspendLayout();
             this.panelEx2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.superTabControl1)).BeginInit();
@@ -121,33 +121,14 @@
             this.integerInput1.BackgroundStyle.CornerType = DevComponents.DotNetBar.eCornerType.Square;
             this.integerInput1.ButtonFreeText.Shortcut = DevComponents.DotNetBar.eShortcut.F2;
             this.integerInput1.DisplayFormat = "00000";
-            this.integerInput1.Location = new System.Drawing.Point(104, 35);
+            this.integerInput1.Location = new System.Drawing.Point(3, 3);
             this.integerInput1.MaxValue = 99999;
             this.integerInput1.MinValue = 0;
             this.integerInput1.Name = "integerInput1";
             this.integerInput1.ShowUpDown = true;
-            this.integerInput1.Size = new System.Drawing.Size(80, 21);
+            this.integerInput1.Size = new System.Drawing.Size(60, 21);
             this.integerInput1.TabIndex = 1;
-            this.integerInput1.ValueChanged += new System.EventHandler(this.integerInput1_ValueChanged);
-            // 
-            // integerInput2
-            // 
-            // 
-            // 
-            // 
-            this.integerInput2.BackgroundStyle.Class = "DateTimeInputBackground";
-            this.integerInput2.BackgroundStyle.CornerType = DevComponents.DotNetBar.eCornerType.Square;
-            this.integerInput2.ButtonFreeText.Shortcut = DevComponents.DotNetBar.eShortcut.F2;
-            this.integerInput2.DisplayFormat = "00000";
-            this.integerInput2.Location = new System.Drawing.Point(190, 35);
-            this.integerInput2.MaxValue = 99999;
-            this.integerInput2.MinValue = 0;
-            this.integerInput2.Name = "integerInput2";
-            this.integerInput2.ShowUpDown = true;
-            this.integerInput2.Size = new System.Drawing.Size(80, 21);
-            this.integerInput2.TabIndex = 2;
-            this.integerInput2.Value = 1;
-            this.integerInput2.ValueChanged += new System.EventHandler(this.integerInput2_ValueChanged);
+            this.integerInput1.ValueChanged += new System.EventHandler(this.integerInput_ValueChanged);
             // 
             // txtUrl
             // 
@@ -189,7 +170,7 @@
             this.chkDeadPatch.Name = "chkDeadPatch";
             this.chkDeadPatch.Size = new System.Drawing.Size(82, 16);
             this.chkDeadPatch.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkDeadPatch, new DevComponents.DotNetBar.SuperTooltipInfo("DeadPatch", "", "开启此项后，每更新完一个子文件，将立即覆盖原文件并删除临时文件。这样做会减少临时文件空间的需要，但是伴随一定风险。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 100)));
+            this.superTooltip1.SetSuperTooltip(this.chkDeadPatch, new DevComponents.DotNetBar.SuperTooltipInfo("DeadPatch", "", "开启此项后，每更新完一个子文件，将立即覆盖原文件并删除临时文件。这样做会减少临时文件空间的需要，但是伴随一定风险。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 130)));
             this.chkDeadPatch.TabIndex = 7;
             this.chkDeadPatch.Text = "DeadPatch";
             // 
@@ -205,7 +186,7 @@
             this.chkPrePatch.Name = "chkPrePatch";
             this.chkPrePatch.Size = new System.Drawing.Size(76, 16);
             this.chkPrePatch.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkPrePatch, new DevComponents.DotNetBar.SuperTooltipInfo("PrePatch", "", "开启此项则会在补丁更新前进行预加载。预加载后可以自由选择要更新的子文件，或调整子文件更新顺序。调整完毕后再次单击\"Patch\"按钮开始更新。", null, null, DevComponents.DotNetBar.eTooltipColor.Default, true, false, new System.Drawing.Size(180, 120)));
+            this.superTooltip1.SetSuperTooltip(this.chkPrePatch, new DevComponents.DotNetBar.SuperTooltipInfo("PrePatch", "", "开启此项则会在补丁更新前进行预加载。预加载后可以自由选择要更新的子文件，或调整子文件更新顺序。调整完毕后再次单击\"Patch\"按钮开始更新。", null, null, DevComponents.DotNetBar.eTooltipColor.Default, true, false, new System.Drawing.Size(180, 140)));
             this.chkPrePatch.TabIndex = 6;
             this.chkPrePatch.Text = "PrePatch";
             // 
@@ -295,11 +276,10 @@
             // 
             this.expandablePanel1.CanvasColor = System.Drawing.SystemColors.Control;
             this.expandablePanel1.ColorSchemeStyle = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
+            this.expandablePanel1.Controls.Add(this.flowLayoutPanel1);
             this.expandablePanel1.Controls.Add(this.buttonXCheck);
             this.expandablePanel1.Controls.Add(this.comboBoxEx1);
             this.expandablePanel1.Controls.Add(this.txtUrl);
-            this.expandablePanel1.Controls.Add(this.integerInput1);
-            this.expandablePanel1.Controls.Add(this.integerInput2);
             this.expandablePanel1.DisabledBackColor = System.Drawing.Color.Empty;
             this.expandablePanel1.Dock = System.Windows.Forms.DockStyle.Top;
             this.expandablePanel1.ExpandOnTitleClick = true;
@@ -322,6 +302,18 @@
             this.expandablePanel1.TitleStyle.ForeColor.ColorSchemePart = DevComponents.DotNetBar.eColorSchemePart.PanelText;
             this.expandablePanel1.TitleStyle.GradientAngle = 90;
             this.expandablePanel1.TitleText = "Patch Download Url";
+            // 
+            // flowLayoutPanel1
+            // 
+            this.flowLayoutPanel1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanel1.BackColor = System.Drawing.Color.Transparent;
+            this.flowLayoutPanel1.Controls.Add(this.integerInput1);
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(104, 33);
+            this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
+            this.flowLayoutPanel1.Name = "flowLayoutPanel1";
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(270, 26);
+            this.flowLayoutPanel1.TabIndex = 5;
             // 
             // buttonXCheck
             // 
@@ -392,7 +384,7 @@
             this.chkEnableDarkMode.Name = "chkEnableDarkMode";
             this.chkEnableDarkMode.Size = new System.Drawing.Size(125, 16);
             this.chkEnableDarkMode.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkEnableDarkMode, new DevComponents.DotNetBar.SuperTooltipInfo("EnableDarkMode", "", "Outputs the comparison with dark mode HTML.", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 60)));
+            this.superTooltip1.SetSuperTooltip(this.chkEnableDarkMode, new DevComponents.DotNetBar.SuperTooltipInfo("EnableDarkMode", "", "将比对结果以暗黑模式 HTML 输出", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkEnableDarkMode.TabIndex = 14;
             this.chkEnableDarkMode.Text = "EnableDarkMode";
             // 
@@ -408,7 +400,7 @@
             this.chkOutputRemovedImg.Name = "chkOutputRemovedImg";
             this.chkOutputRemovedImg.Size = new System.Drawing.Size(125, 16);
             this.chkOutputRemovedImg.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkOutputRemovedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputRemovedImg", "", "对比报告中是否输出被整体移除的Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 60)));
+            this.superTooltip1.SetSuperTooltip(this.chkOutputRemovedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputRemovedImg", "", "对比报告中是否输出被整体移除的Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputRemovedImg.TabIndex = 14;
             this.chkOutputRemovedImg.Text = "OutputRemovedImg";
             // 
@@ -424,7 +416,7 @@
             this.chkOutputAddedImg.Name = "chkOutputAddedImg";
             this.chkOutputAddedImg.Size = new System.Drawing.Size(113, 16);
             this.chkOutputAddedImg.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkOutputAddedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputAddedImg", "", "对比报告中是否输出新增Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 60)));
+            this.superTooltip1.SetSuperTooltip(this.chkOutputAddedImg, new DevComponents.DotNetBar.SuperTooltipInfo("OutputAddedImg", "", "对比报告中是否输出新增Image的完整结构", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputAddedImg.TabIndex = 13;
             this.chkOutputAddedImg.Text = "OutputAddedImg";
             // 
@@ -440,7 +432,7 @@
             this.cmbComparePng.Size = new System.Drawing.Size(120, 21);
             this.cmbComparePng.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
             this.superTooltip1.SetSuperTooltip(this.cmbComparePng, new DevComponents.DotNetBar.SuperTooltipInfo("PngComparison", "", "对于对比报告中图片的对比方式。\r\nSizeOnly - 仅对比图片大小，可能会遗漏。\r\nSizeAndDataLength - 同时对比图片大小和压缩流长度，可能" +
-            "会误判。\r\nPixel - 像素级对比，非常精确但可能略耗时。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, true, new System.Drawing.Size(300, 100)));
+            "会误判。\r\nPixel - 像素级对比，非常精确但可能略耗时。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, true, new System.Drawing.Size(300, 130)));
             this.cmbComparePng.TabIndex = 12;
             // 
             // chkOutputPng
@@ -458,7 +450,7 @@
             this.chkOutputPng.Name = "chkOutputPng";
             this.chkOutputPng.Size = new System.Drawing.Size(82, 16);
             this.chkOutputPng.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkOutputPng, new DevComponents.DotNetBar.SuperTooltipInfo("OutputPng", "", "对比报告中是否输出有差异的图片文件。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 60)));
+            this.superTooltip1.SetSuperTooltip(this.chkOutputPng, new DevComponents.DotNetBar.SuperTooltipInfo("OutputPng", "", "对比报告中是否输出有差异的图片文件。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 80)));
             this.chkOutputPng.TabIndex = 11;
             this.chkOutputPng.Text = "OutputPng";
             // 
@@ -474,7 +466,7 @@
             this.chkCompare.Name = "chkCompare";
             this.chkCompare.Size = new System.Drawing.Size(70, 16);
             this.chkCompare.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkCompare, new DevComponents.DotNetBar.SuperTooltipInfo("Compare", "", "开启此项后，每更新完一个Wz文件，将会进行新旧文件对比并输出更新报告。有一些额外的选项可以控制对比更新的执行方式。\r\n对比过程出错不会影响补丁继续执行。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(238, 100)));
+            this.superTooltip1.SetSuperTooltip(this.chkCompare, new DevComponents.DotNetBar.SuperTooltipInfo("Compare", "", "开启此项后，每更新完一个Wz文件，将会进行新旧文件对比并输出更新报告。有一些额外的选项可以控制对比更新的执行方式。\r\n对比过程出错不会影响补丁继续执行。", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(238, 130)));
             this.chkCompare.TabIndex = 10;
             this.chkCompare.Text = "Compare";
             // 
@@ -898,7 +890,7 @@
             this.chkResolvePngLink.Name = "chkResolvePngLink";
             this.chkResolvePngLink.Size = new System.Drawing.Size(95, 16);
             this.chkResolvePngLink.Style = DevComponents.DotNetBar.eDotNetBarStyle.StyleManagerControlled;
-            this.superTooltip1.SetSuperTooltip(this.chkResolvePngLink, new DevComponents.DotNetBar.SuperTooltipInfo("ResolvePngLink", "", "对比报告中是否智能解析对比被Link的图片\r\n这会过滤掉无用的变更内容", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 72)));
+            this.superTooltip1.SetSuperTooltip(this.chkResolvePngLink, new DevComponents.DotNetBar.SuperTooltipInfo("ResolvePngLink", "", "对比报告中是否智能解析对比被Link的图片\r\n这会过滤掉无用的变更内容", null, null, DevComponents.DotNetBar.eTooltipColor.System, true, false, new System.Drawing.Size(180, 90)));
             this.chkResolvePngLink.TabIndex = 18;
             this.chkResolvePngLink.Text = "ResolveLink";
             // 
@@ -913,8 +905,8 @@
             this.Text = "更新装置";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.FrmPatcher_FormClosed);
             ((System.ComponentModel.ISupportInitialize)(this.integerInput1)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.integerInput2)).EndInit();
             this.expandablePanel1.ResumeLayout(false);
+            this.flowLayoutPanel1.ResumeLayout(false);
             this.expandablePanel2.ResumeLayout(false);
             this.expandablePanel2.PerformLayout();
             this.panelEx2.ResumeLayout(false);
@@ -935,7 +927,6 @@
 
         private DevComponents.DotNetBar.Controls.ComboBoxEx comboBoxEx1;
         private DevComponents.Editors.IntegerInput integerInput1;
-        private DevComponents.Editors.IntegerInput integerInput2;
         private DevComponents.DotNetBar.Controls.TextBoxX txtUrl;
         private DevComponents.DotNetBar.ButtonX buttonXOpen2;
         private DevComponents.DotNetBar.Controls.TextBoxX txtMSFolder;
@@ -987,5 +978,6 @@
         private DevComponents.DotNetBar.ButtonX buttonXCreate;
         private DevComponents.DotNetBar.Controls.CheckBoxX chkResolvePngLink;
         private DevComponents.DotNetBar.Controls.CheckBoxX chkEnableDarkMode;
+        private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
     }
 }

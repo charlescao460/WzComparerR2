@@ -175,6 +175,12 @@ namespace WzComparerR2.CharaSim
         cantRepair,
         noPetEquipStatMoveItem,
         BTSLabel,
+        BLACKPINKLabel,
+        android,
+        noLookChange,
+        tucIgnoreForPotential,
+        Etuc,
+        CuttableCount,
 
         gatherTool_incSkillLevel = 2000,
         gatherTool_incSpeed,

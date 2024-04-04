@@ -18,6 +18,10 @@ namespace WzComparerR2
         public FrmQuickViewSetting()
         {
             InitializeComponent();
+#if NET6_0_OR_GREATER
+            // https://learn.microsoft.com/en-us/dotnet/core/compatibility/fx-core#controldefaultfont-changed-to-segoe-ui-9pt
+            this.Font = new Font(new FontFamily("Microsoft Sans Serif"), 8f);
+#endif
             this.comboBoxEx1.SelectedIndex = 0;
             this.comboBoxEx2.SelectedIndex = 0;
         }
@@ -80,6 +84,13 @@ namespace WzComparerR2
         {
             get { return checkBoxX14.Checked; }
             set { checkBoxX14.Checked = value; }
+        }
+
+        [Link]
+        public bool Skill_IgnoreEvalError
+        {
+            get { return checkBoxX15.Checked; }
+            set { checkBoxX15.Checked = value; }
         }
 
         [Link]

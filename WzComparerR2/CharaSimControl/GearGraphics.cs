@@ -86,10 +86,11 @@ namespace WzComparerR2.CharaSimControl
         /// 表示物品附加属性中橙色字体画刷。
         /// </summary>
         public static readonly Brush OrangeBrush2 = new SolidBrush(Color.FromArgb(255, 170, 0));
+        public static readonly Color OrangeBrush3Color = Color.FromArgb(255, 204, 0);
         /// <summary>
         /// 表示装备职业额外说明中使用的橙黄色画刷。
         /// </summary>
-        public static readonly Brush OrangeBrush3 = new SolidBrush(Color.FromArgb(255, 204, 0));
+        public static readonly Brush OrangeBrush3 = new SolidBrush(OrangeBrush3Color);
         /// <summary>
         /// 表示装备属性额外说明中使用的绿色画刷。
         /// </summary>
@@ -153,6 +154,9 @@ namespace WzComparerR2.CharaSimControl
         /// 表示装备属性变化的青色画刷。
         /// </summary>
         public static readonly Brush GearPropChangeBrush = new SolidBrush(gearCyanColor);
+
+        public static readonly Color SkillSummaryOrangeTextColor = Color.FromArgb(255, 204, 0);
+        public static readonly Brush SkillSummaryOrangeTextBrush = new SolidBrush(SkillSummaryOrangeTextColor);
 
         public static Brush GetGearNameBrush(int diff, bool up)
         {
@@ -221,6 +225,11 @@ namespace WzComparerR2.CharaSimControl
         /// <param Name="y">起始行的y坐标。</param>
         public static void DrawString(Graphics g, string s, Font font, int x, int x1, ref int y, int height)
         {
+            DrawString(g, s, font, null, x, x1, ref y, height);
+        }
+
+        public static void DrawString(Graphics g, string s, Font font, IDictionary<string, Color> fontColorTable, int x, int x1, ref int y, int height)
+        {
             if (s == null)
                 return;
 
@@ -228,6 +237,7 @@ namespace WzComparerR2.CharaSimControl
             {
                 r.WordWrapEnabled = false;
                 r.UseGDIRenderer = false;
+                r.FontColorTable = fontColorTable;
                 r.DrawString(g, s, font, x, x1, ref y, height);
             }
         }
@@ -501,6 +511,7 @@ namespace WzComparerR2.CharaSimControl
             }
 
             public bool UseGDIRenderer { get; set; }
+            public IDictionary<string, Color> FontColorTable { get; set; }
 
             const int MAX_RANGES = 32;
             StringFormat fmt;
@@ -641,13 +652,17 @@ namespace WzComparerR2.CharaSimControl
             protected override void Flush(StringBuilder sb, int startIndex, int length, int x, int y, string colorID)
             {
                 string content = sb.ToString(startIndex, length);
+                colorID = colorID ?? string.Empty;
                 Color color;
-                switch (colorID)
+                if (!(this.FontColorTable?.TryGetValue(colorID, out color) ?? false))
                 {
-                    case "c": color = GearGraphics.OrangeBrushColor; break;
-                    case "g": color = GearGraphics.gearGreenColor; break;
-                    case "$": color = GearGraphics.gearCyanColor; break;
-                    default: color = this.defaultColor; break;
+                    switch (colorID)
+                    {
+                        case "c": color = GearGraphics.OrangeBrushColor; break;
+                        case "g": color = GearGraphics.gearGreenColor; break;
+                        case "$": color = GearGraphics.gearCyanColor; break;
+                        default: color = this.defaultColor; break;
+                    }
                 }
                 if (this.UseGDIRenderer)
                 {

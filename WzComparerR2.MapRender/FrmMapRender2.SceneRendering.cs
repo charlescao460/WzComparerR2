@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using WzComparerR2.Common;
-using WzComparerR2.Rendering;
 using WzComparerR2.MapRender.UI;
 using WzComparerR2.MapRender.Patches2;
 using WzComparerR2.Animation;
 
 using Microsoft.Xna.Framework;
-using System.Runtime.InteropServices;
+using Microsoft.Xna.Framework.Graphics;
+using WzComparerR2.Controls;
 
 namespace WzComparerR2.MapRender
 {
@@ -95,6 +95,14 @@ namespace WzComparerR2.MapRender
                             var frameAni = (FrameAnimator)ani;
                             frameAni.Update(elapsed);
                         }
+                    }
+                    else if (item is IlluminantClusterItem)
+                    {
+                        var illuminantCluster = (IlluminantClusterItem)item;
+                        (illuminantCluster.StartView.Animator as WzComparerR2.Controls.AnimationItem)?.Update(elapsed);
+                        illuminantCluster.StartView.Time += (int)elapsed.TotalMilliseconds;
+                        (illuminantCluster.EndView.Animator as WzComparerR2.Controls.AnimationItem)?.Update(elapsed);
+                        illuminantCluster.EndView.Time += (int)elapsed.TotalMilliseconds;
                     }
                     else if (item is ReactorItem)
                     {
@@ -204,7 +212,7 @@ namespace WzComparerR2.MapRender
             {
                 var mouseTarget = this.allItems.Reverse<ItemRect>().FirstOrDefault(item =>
                 {
-                    return item.rect.Contains(mouse) && (item.item is LifeItem || item.item is PortalItem || item.item is ReactorItem);
+                    return item.rect.Contains(mouse) && (item.item is LifeItem || item.item is PortalItem || item.item is IlluminantClusterItem || item.item is ReactorItem);
                 });
                 target = mouseTarget.item;
             }
@@ -271,6 +279,22 @@ namespace WzComparerR2.MapRender
                 {
                     MoveToPortal(portal.ToMap, portal.ToName, portal.PName);
                 }
+                else if (portal.GraphTargetMap.Count == 1)
+                {
+                    MoveToPortal(portal.GraphTargetMap[0], "sp", portal.PName);
+                }
+                else if (portal.GraphTargetMap.Count > 1)
+                {
+                    this.ui.Teleport.Sl = this.StringLinker;
+                    this.ui.Teleport.CmbMaps.ItemsSource = portal.GraphTargetMap.ToList();
+                    this.ui.Teleport.CmbMaps.SelectedIndex = 0;
+                    this.ui.Teleport.Toggle();
+                }
+            }
+            else if (item is IlluminantClusterItem)
+            {
+                var illuminantCluster = (IlluminantClusterItem)item;
+                this.cm.StartCoroutine(OnCameraMoving(new Point(illuminantCluster.End.X, illuminantCluster.End.Y), 500));
             }
         }
 
@@ -279,6 +303,18 @@ namespace WzComparerR2.MapRender
             if (this.mapData == null)
             {
                 return;
+            }
+            RenderTarget2D lightMapTexture = null;
+
+            // draw lightmap if available
+            if (this.mapData?.Light != null)
+            {
+                var viewport = this.GraphicsDevice.Viewport;
+                lightMapTexture = new RenderTarget2D(this.GraphicsDevice, viewport.Width, viewport.Height, false, SurfaceFormat.Color, DepthFormat.None);
+                var oldRenderTarget = this.GraphicsDevice.GetRenderTargets();
+                this.GraphicsDevice.SetRenderTarget(lightMapTexture);
+                this.PrepareLightMap();
+                this.GraphicsDevice.SetRenderTargets(oldRenderTarget);
             }
 
             allItems.Clear();
@@ -320,6 +356,13 @@ namespace WzComparerR2.MapRender
             DrawBoundingBox(gameTime);
 
             this.batcher.End();
+
+            // apply light map
+            if (lightMapTexture != null)
+            {
+                this.ApplyLightMap(lightMapTexture);
+                lightMapTexture.Dispose();
+            }
         }
 
         private void DrawBoundingBox(GameTime gameTime)
@@ -403,6 +446,35 @@ namespace WzComparerR2.MapRender
                 foreach (var item in skyWhaleList)
                 {
                     foreach (var dx in new[] { 0, -item.Width / 2, item.Width / 2 })
+                    {
+                        Point start = new Point(item.Start.X + dx, item.Start.Y);
+                        Point end = new Point(item.End.X + dx, item.End.Y);
+                        //画箭头
+                        lines.Add(start);
+                        lines.Add(end);
+                        lines.Add(end);
+                        lines.Add(new Point(end.X - 5, end.Y + 8));
+                        lines.Add(end);
+                        lines.Add(new Point(end.X + 5, end.Y + 8));
+                    }
+                }
+
+                if (lines.Count > 0)
+                {
+                    var meshItem = this.batcher.MeshPop();
+                    meshItem.RenderObject = new LineListMesh(lines.ToArray(), color, 1);
+                    this.batcher.Draw(meshItem);
+                    this.batcher.MeshPush(meshItem);
+                }
+            }
+
+            if (patchVisibility.IlluminantClusterPathVisible)
+            {
+                var lines = new List<Point>();
+                var illuminentClusterList = this.mapData.Scene.Fly.IlluminantCluster.Slots.OfType<IlluminantClusterItem>();
+                foreach (var item in illuminentClusterList)
+                {
+                    foreach (var dx in new[] { 0, -item.Size / 2, item.Size / 2 })
                     {
                         Point start = new Point(item.Start.X + dx, item.Start.Y);
                         Point end = new Point(item.End.X + dx, item.End.Y);
@@ -530,6 +602,40 @@ namespace WzComparerR2.MapRender
             }
         }
 
+        private void PrepareLightMap()
+        {
+            var mapLight = this.mapData.Light;
+            var origin = this.renderEnv.Camera.Origin.ToPoint();
+            this.GraphicsDevice.Clear(mapLight.BackColor);
+
+            this.lightRenderer.Begin(Matrix.CreateTranslation(new Vector3(-origin.X, -origin.Y, 0)));
+            // render spot light
+            foreach (var light2D in mapLight.Lights)
+            {
+                this.lightRenderer.DrawSpotLight(light2D);
+            }
+            // render texture light
+            foreach(var container in GetSceneContainers(this.mapData.Scene))
+            {
+                foreach (var item in container.Slots)
+                {
+                    if (item is ObjItem obj && obj.Light && obj.View.Animator is FrameAnimator frameAni)
+                    {
+                        var frame = frameAni.CurrentFrame;
+                        this.lightRenderer.DrawTextureLight(frame.Texture, new Vector2(obj.X, obj.Y), frame.AtlasRect, frame.Origin.ToVector2(), obj.Flip, new Color(Color.White, frame.A0));
+                    }
+                }
+            }
+            this.lightRenderer.End();
+        }
+
+        private void ApplyLightMap(Texture2D lightMapTexture)
+        {
+            this.renderEnv.Sprite.Begin(blendState: this.renderEnv.BlendStateMultiplyRGB);
+            this.renderEnv.Sprite.Draw(lightMapTexture, Vector2.Zero, Color.White);
+            this.renderEnv.Sprite.End();
+        }
+
         private IEnumerable<ContainerNode> GetSceneContainers(SceneNode node)
         {
             /*
@@ -606,6 +712,16 @@ _pop:
                     {
                         kvList.Add(new KeyValuePair<SceneItem, MeshItem>(item, mesh));
                     }
+                    if (item is IlluminantClusterItem)
+                    {
+                        if (patchVisibility.IlluminantClusterVisible)
+                        {
+                            foreach (var meshIlluminantCluster in GetMeshesIlluminantCluster((IlluminantClusterItem)item))
+                            {
+                                kvList.Add(new KeyValuePair<SceneItem, MeshItem>(item, meshIlluminantCluster));
+                            }
+                        }
+                    }
                 }
                 kvList.Sort((kv1, kv2) => kv1.Value.CompareTo(kv2.Value));
                 foreach (var kv in kvList)
@@ -632,11 +748,11 @@ _pop:
                     return GetMeshBack(back);
                 }
             }
-            else if (item is ObjItem)
+            else if (item is ObjItem obj)
             {
-                if (patchVisibility.ObjVisible)
+                if (patchVisibility.ObjVisible && !obj.Light)
                 {
-                    return GetMeshObj((ObjItem)item);
+                    return GetMeshObj(obj);
                 }
             }
             else if (item is TileItem)
@@ -686,17 +802,14 @@ _pop:
 
             //计算坐标
             Point renderSize;
-            if (back.View.Animator is FrameAnimator)
+            if (back.View.Animator is FrameAnimator frameAni)
             {
-                var ani = (FrameAnimator)back.View.Animator;
-                renderSize = ani.CurrentFrame.Rectangle.Size;
+                renderSize = frameAni.CurrentFrame.Rectangle.Size;
             }
-            else if (back.View.Animator is SpineAnimator)
+            else if (back.View.Animator is AnimationItem aniItem)
             {
-                var ani = (SpineAnimator)back.View.Animator;
-                var data = ani.Data.SkeletonData;
-                var rect = ani.Measure();
-                renderSize = rect.Size; // new Point((int)data.Width, (int)data.Height);
+                var rect = aniItem.Measure();
+                renderSize = rect.Size;
             }
             else
             {
@@ -788,7 +901,7 @@ _pop:
 
         private MeshItem GetMeshObj(ObjItem obj)
         {
-            var renderObj = GetRenderObject(obj.View.Animator, obj.Flip);
+            var renderObj = GetRenderObject(obj.View.Animator, flip: obj.Flip);
             if (renderObj == null)
             {
                 return null;
@@ -848,6 +961,31 @@ _pop:
             return mesh;
         }
 
+        private MeshItem[] GetMeshesIlluminantCluster(IlluminantClusterItem illuminantCluster)
+        {
+            var renderObj = GetRenderObject(illuminantCluster.StartView.Animator);
+            if (renderObj == null)
+            {
+                return null;
+            }
+            var startMesh = batcher.MeshPop();
+            startMesh.RenderObject = renderObj;
+            startMesh.Position = new Vector2(illuminantCluster.Start.X + illuminantCluster.Size / 2, illuminantCluster.Start.Y - illuminantCluster.Size / 2);
+            startMesh.Z0 = ((renderObj as Frame)?.Z ?? 0);
+            startMesh.Z1 = illuminantCluster.Index;
+            renderObj = GetRenderObject(illuminantCluster.EndView.Animator);
+            if (renderObj == null)
+            {
+                return null;
+            }
+            var endMesh = batcher.MeshPop();
+            endMesh.RenderObject = renderObj;
+            endMesh.Position = new Vector2(illuminantCluster.End.X + illuminantCluster.Size / 2, illuminantCluster.End.Y - illuminantCluster.Size / 2);
+            endMesh.Z0 = ((renderObj as Frame)?.Z ?? 0);
+            endMesh.Z1 = illuminantCluster.Index;
+            return new MeshItem[] { startMesh, endMesh };
+        }
+
         private MeshItem GetMeshReactor(ReactorItem reactor)
         {
             var renderObj = GetRenderObject(reactor.View.Animator);
@@ -885,9 +1023,9 @@ _pop:
 
         private object GetRenderObject(object animator, bool flip = false, int alpha = 255)
         {
-            if (animator is FrameAnimator)
+            if (animator is FrameAnimator frameAni)
             {
-                var frame = ((FrameAnimator)animator).CurrentFrame;
+                var frame = frameAni.CurrentFrame;
                 if (frame != null)
                 {
                     if (alpha < 255) //理论上应该返回一个新的实例
@@ -897,9 +1035,9 @@ _pop:
                     return frame;
                 }
             }
-            else if (animator is SpineAnimator)
+            else if (animator is SpineAnimatorV2 spineAniV2)
             {
-                var skeleton = ((SpineAnimator)animator).Skeleton;
+                var skeleton = spineAniV2.Skeleton;
                 if (skeleton != null)
                 {
                     if (alpha < 255)
@@ -909,13 +1047,23 @@ _pop:
                     return skeleton;
                 }
             }
-            else if (animator is StateMachineAnimator)
+            else if (animator is SpineAnimatorV4 spineAniV4)
             {
-                var smAni = (StateMachineAnimator)animator;
+                var skeleton = spineAniV4.Skeleton;
+                if (skeleton != null)
+                {
+                    if (alpha < 255)
+                    {
+                        skeleton.A = alpha / 255.0f;
+                    }
+                    return skeleton;
+                }
+            }
+            else if (animator is StateMachineAnimator smAni)
+            {
                 return smAni.Data.GetMesh();
             }
 
-            //各种意外
             return null;
         }
     }

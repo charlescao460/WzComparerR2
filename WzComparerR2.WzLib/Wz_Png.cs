@@ -11,14 +11,14 @@ namespace WzComparerR2.WzLib
 {
     public class Wz_Png
     {
-        public Wz_Png(int w, int h, int data_length, int form, uint offs, Wz_File wz_f)
+        public Wz_Png(int w, int h, int data_length, int form, uint offs, Wz_Image wz_i)
         {
             this.w = w;
             this.h = h;
             this.data_length = data_length;
             this.form = form;
             this.offs = offs;
-            this.wz_f = wz_f;
+            this.wz_i = wz_i;
         }
 
         private int w;
@@ -26,7 +26,7 @@ namespace WzComparerR2.WzLib
         private int data_length;
         private int form;
         private uint offs;
-        private Wz_File wz_f;
+        private Wz_Image wz_i;
 
         /// <summary>
         /// 获取或设置图片的宽度。
@@ -78,8 +78,17 @@ namespace WzComparerR2.WzLib
         /// </summary>
         public Wz_File WzFile
         {
-            get { return wz_f; }
-            set { wz_f = value; }
+            get { return wz_i.WzFile; }
+            set { wz_i.WzFile = value; }
+        }
+
+        /// <summary>
+        /// 获取或设置图片所属的WzImage
+        /// </summary>
+        public Wz_Image WzImage
+        {
+            get { return wz_i; }
+            set { wz_i = value; }
         }
 
         public byte[] GetRawData()
@@ -101,20 +110,25 @@ namespace WzComparerR2.WzLib
                 else
                 {
                     this.WzFile.FileStream.Position -= 2;
-                    MemoryStream dataStream = new MemoryStream(this.DataLength);
-                    int blocksize = 0;
-                    int endPosition = (int)(this.DataLength + this.WzFile.FileStream.Position);
+                    byte[] buffer = new byte[this.DataLength];
+                    int startIndex = 0;
+                    long endPosition = this.DataLength + this.WzFile.FileStream.Position;
 
-                    var encKeys = this.WzFile.WzStructure.encryption.keys;
+                    var encKeys = this.WzImage.EncKeys;
 
                     while (this.WzFile.FileStream.Position < endPosition)
                     {
-                        blocksize = this.WzFile.BReader.ReadInt32();
-                        byte[] dataBlock = this.WzFile.BReader.ReadBytes(blocksize);
-                        encKeys.Decrypt(dataBlock, 0, dataBlock.Length);
+                        int blockSize = this.WzFile.BReader.ReadInt32();
+                        if (this.WzFile.FileStream.Position + blockSize > endPosition)
+                        {
+                            throw new Exception($"Wz_Png exceeds the declared data size. (data length: {this.DataLength}, readed bytes: {startIndex}, next block: {blockSize})");
+                        }
+                        this.WzFile.BReader.Read(buffer, startIndex, blockSize);
+                        encKeys.Decrypt(buffer, startIndex, blockSize);
 
-                        dataStream.Write(dataBlock, 0, dataBlock.Length);
+                        startIndex += blockSize;
                     }
+                    var dataStream = new MemoryStream(buffer);
                     dataStream.Position = 2;
                     zlib = new DeflateStream(dataStream, CompressionMode.Decompress);
                 }
@@ -125,28 +139,28 @@ namespace WzComparerR2.WzLib
                     case 257:
                     case 513:
                         plainData = new byte[this.w * this.h * 2];
-                        zlib.Read(plainData, 0, plainData.Length);
+                        ReadAvailableBytes(zlib, plainData, 0, plainData.Length);
                         break;
 
                     case 2:
                         plainData = new byte[this.w * this.h * 4];
-                        zlib.Read(plainData, 0, plainData.Length);
+                        ReadAvailableBytes(zlib, plainData, 0, plainData.Length);
                         break;
 
                     case 3:
                         plainData = new byte[((int)Math.Ceiling(this.w / 4.0)) * 4 * ((int)Math.Ceiling(this.h / 4.0)) * 4 / 8];
-                        zlib.Read(plainData, 0, plainData.Length);
+                        ReadAvailableBytes(zlib, plainData, 0, plainData.Length);
                         break;
 
                     case 517:
                         plainData = new byte[this.w * this.h / 128];
-                        zlib.Read(plainData, 0, plainData.Length);
+                        ReadAvailableBytes(zlib, plainData, 0, plainData.Length);
                         break;
 
                     case 1026:
                     case 2050:
                         plainData = new byte[this.w * this.h];
-                        zlib.Read(plainData, 0, plainData.Length);
+                        ReadAvailableBytes(zlib, plainData, 0, plainData.Length);
                         break;
 
                     default:
@@ -176,7 +190,7 @@ namespace WzComparerR2.WzLib
 
             switch (this.form)
             {
-                case 1: //16位argba4444
+                case 1: //16位argb4444
                     argb = GetPixelDataBgra4444(pixel, this.w, this.h);
                     pngDecoded = new Bitmap(this.w, this.h, PixelFormat.Format32bppArgb);
                     bmpdata = pngDecoded.LockBits(new Rectangle(Point.Empty, pngDecoded.Size), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
@@ -217,7 +231,7 @@ namespace WzComparerR2.WzLib
                     argb = GetPixelDataForm517(pixel, this.w, this.h);
                     pngDecoded = new Bitmap(this.w, this.h, PixelFormat.Format16bppRgb565);
                     bmpdata = pngDecoded.LockBits(new Rectangle(0, 0, this.w, this.h), ImageLockMode.WriteOnly, PixelFormat.Format16bppRgb565);
-                    CopyBmpDataWithStride(pixel, pngDecoded.Width * 2, bmpdata);
+                    Marshal.Copy(argb, 0, bmpdata.Scan0, argb.Length);
                     pngDecoded.UnlockBits(bmpdata);
                     break;
                    /* pngDecoded = new Bitmap(this.w, this.h);
@@ -547,7 +561,22 @@ namespace WzComparerR2.WzLib
                     Marshal.Copy(source, stride * y, bmpData.Scan0 + bmpData.Stride * y, stride);
                 }
             }
+        }
 
+        private static int ReadAvailableBytes(Stream inputStream, byte[] array, int offset, int count)
+        {
+            // this is a wrapper function that to make sure always reading as much as requested from zlib stream;
+            // https://github.com/Kagamia/WzComparerR2/issues/195
+            int totalRead = 0;
+            while (count > 0)
+            {
+                int bytesRead = inputStream.Read(array, offset, count);
+                if (bytesRead == 0) break;
+                totalRead += bytesRead;
+                offset += bytesRead;
+                count -= bytesRead;
+            }
+            return totalRead;
         }
     }
 }

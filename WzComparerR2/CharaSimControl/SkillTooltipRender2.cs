@@ -27,6 +27,7 @@ namespace WzComparerR2.CharaSimControl
         public bool ShowReqSkill { get; set; } = true;
         public bool DisplayCooltimeMSAsSec { get; set; } = true;
         public bool DisplayPermyriadAsPercent { get; set; } = true;
+        public bool IgnoreEvalError { get; set; } = false;
         public bool IsWideMode { get; set; } = true;
 
         public override Bitmap Render()
@@ -39,18 +40,28 @@ namespace WzComparerR2.CharaSimControl
             CanvasRegion region = this.IsWideMode ? CanvasRegion.Wide : CanvasRegion.Original;
 
             int picHeight;
-            Bitmap originBmp = RenderSkill(region, out picHeight);
+            List<int> splitterH;
+            Bitmap originBmp = RenderSkill(region, out picHeight, out splitterH);
             Bitmap tooltip = new Bitmap(originBmp.Width, picHeight);
             Graphics g = Graphics.FromImage(tooltip);
 
             //绘制背景区域
             GearGraphics.DrawNewTooltipBack(g, 0, 0, tooltip.Width, tooltip.Height);
+            if (splitterH != null && splitterH.Count > 0)
+            {
+                g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+                foreach (var y in splitterH)
+                {
+                    DrawV6SkillDotline(g, region.SplitterX1, region.SplitterX2, y);
+                }
+                g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
+            }
 
             //复制图像
             g.DrawImage(originBmp, 0, 0, new Rectangle(0, 0, originBmp.Width, picHeight), GraphicsUnit.Pixel);
 
             //左上角
-            g.DrawImage(Resource.UIToolTip_img_Item_Frame2_cover, 3, 3);
+            g.DrawImage(Resource.UIToolTip_img_Skill_Frame_cover, 3, 3);
 
             if (this.ShowObjectID)
             {
@@ -64,12 +75,18 @@ namespace WzComparerR2.CharaSimControl
             return tooltip;
         }
 
-        private Bitmap RenderSkill(CanvasRegion region, out int picH)
+        private Bitmap RenderSkill(CanvasRegion region, out int picH, out List<int> splitterH)
         {
             Bitmap bitmap = new Bitmap(region.Width, DefaultPicHeight);
             Graphics g = Graphics.FromImage(bitmap);
             StringFormat format = (StringFormat)StringFormat.GenericDefault.Clone();
+            var v6SkillSummaryFontColorTable = new Dictionary<string, Color>()
+            {
+                { "c", GearGraphics.SkillSummaryOrangeTextColor },
+            };
+
             picH = 0;
+            splitterH = new List<int>();
 
             //获取文字
             StringResult sr;
@@ -85,12 +102,19 @@ namespace WzComparerR2.CharaSimControl
 
             //绘制图标
             picH = 33;
-            g.FillRectangle(GearGraphics.GearIconBackBrush2, 14, picH, 68, 68);
+            g.DrawImage(Resource.UIToolTip_img_Skill_Frame_iconBackgrnd, 13, picH - 2);
+
             if (Skill.Icon.Bitmap != null)
             {
                 g.DrawImage(GearGraphics.EnlargeBitmap(Skill.Icon.Bitmap),
-                14 + (1 - Skill.Icon.Origin.X) * 2,
+                15 + (1 - Skill.Icon.Origin.X) * 2,
                 picH + (33 - Skill.Icon.Bitmap.Height) * 2);
+            }
+
+            // for 6th job skills
+            if (Skill.Origin)
+            {
+                g.DrawImage(Resource.UIWindow2_img_Skill_skillTypeIcon_origin, 16, 11);
             }
 
             //绘制desc
@@ -102,7 +126,7 @@ namespace WzComparerR2.CharaSimControl
             {
                 string hdesc = SummaryParser.GetSkillSummary(sr.Desc, Skill.Level, Skill.Common, SummaryParams.Default);
                 //string hStr = SummaryParser.GetSkillSummary(skill, skill.Level, sr, SummaryParams.Default);
-                GearGraphics.DrawString(g, hdesc, GearGraphics.ItemDetailFont2, region.SkillDescLeft, region.TextRight, ref picH, 16);
+                GearGraphics.DrawString(g, hdesc, GearGraphics.ItemDetailFont2, v6SkillSummaryFontColorTable, region.SkillDescLeft, region.TextRight, ref picH, 16);
             }
             if (Skill.ReqLevel > 0)
             {
@@ -112,37 +136,38 @@ namespace WzComparerR2.CharaSimControl
             {
                 GearGraphics.DrawString(g, "#c" + ItemStringHelper.GetSkillReqAmount(Skill.SkillID, Skill.ReqAmount) + "#", GearGraphics.ItemDetailFont2, region.SkillDescLeft, region.TextRight, ref picH, 16);
             }
+            picH += 13;
 
-            //分割线
+            //delay rendering v6 splitter
             picH = Math.Max(picH, 114);
-            g.DrawLine(Pens.White, region.SplitterX1, picH, region.SplitterX2, picH);
-            picH += 9;
+            splitterH.Add(picH);
+            picH += 15;
+
+            var skillSummaryOptions = new SkillSummaryOptions
+            {
+                ConvertCooltimeMS = this.DisplayCooltimeMSAsSec,
+                ConvertPerM = this.DisplayPermyriadAsPercent,
+                IgnoreEvalError = this.IgnoreEvalError,
+                EndColorOnNewLine = true,
+            };
 
             if (Skill.Level > 0)
             {
-                string hStr = SummaryParser.GetSkillSummary(Skill, Skill.Level, sr, SummaryParams.Default, new SkillSummaryOptions
-                {
-                    ConvertCooltimeMS = this.DisplayCooltimeMSAsSec,
-                    ConvertPerM = this.DisplayPermyriadAsPercent
-                });
+                string hStr = SummaryParser.GetSkillSummary(Skill, Skill.Level, sr, SummaryParams.Default, skillSummaryOptions);
                 GearGraphics.DrawString(g, "[现在等级 " + Skill.Level + "]", GearGraphics.ItemDetailFont, region.LevelDescLeft, region.TextRight, ref picH, 16);
                 if (hStr != null)
                 {
-                    GearGraphics.DrawString(g, hStr, GearGraphics.ItemDetailFont2, region.LevelDescLeft, region.TextRight, ref picH, 16);
+                    GearGraphics.DrawString(g, hStr, GearGraphics.ItemDetailFont2, v6SkillSummaryFontColorTable, region.LevelDescLeft, region.TextRight, ref picH, 16);
                 }
             }
 
             if (Skill.Level < Skill.MaxLevel)
             {
-                string hStr = SummaryParser.GetSkillSummary(Skill, Skill.Level + 1, sr, SummaryParams.Default, new SkillSummaryOptions
-                {
-                    ConvertCooltimeMS = this.DisplayCooltimeMSAsSec,
-                    ConvertPerM = this.DisplayPermyriadAsPercent
-                });
+                string hStr = SummaryParser.GetSkillSummary(Skill, Skill.Level + 1, sr, SummaryParams.Default, skillSummaryOptions);
                 GearGraphics.DrawString(g, "[下次等级 " + (Skill.Level + 1) + "]", GearGraphics.ItemDetailFont, region.LevelDescLeft, region.TextRight, ref picH, 16);
                 if (hStr != null)
                 {
-                    GearGraphics.DrawString(g, hStr, GearGraphics.ItemDetailFont2, region.LevelDescLeft, region.TextRight, ref picH, 16);
+                    GearGraphics.DrawString(g, hStr, GearGraphics.ItemDetailFont2, v6SkillSummaryFontColorTable, region.LevelDescLeft, region.TextRight, ref picH, 16);
                 }
             }
             picH += 9;
@@ -205,7 +230,8 @@ namespace WzComparerR2.CharaSimControl
 
             if (skillDescEx.Count > 0)
             {
-                g.DrawLine(Pens.White, region.SplitterX1, picH, region.SplitterX2, picH);
+                //delay rendering v6 splitter
+                splitterH.Add(picH);
                 picH += 9;
                 foreach (var descEx in skillDescEx)
                 {
@@ -217,6 +243,17 @@ namespace WzComparerR2.CharaSimControl
             format.Dispose();
             g.Dispose();
             return bitmap;
+        }
+
+        private void DrawV6SkillDotline(Graphics g, int x1, int x2, int y)
+        {
+            // here's a trick that we won't draw left and right part because it looks the same as background border.
+            var picCenter = Resource.UIToolTip_img_Skill_Frame_dotline_c;
+            using (var brush = new TextureBrush(picCenter))
+            {
+                brush.TranslateTransform(x1, y);
+                g.FillRectangle(brush, new Rectangle(x1, y, x2 - x1, picCenter.Height));
+            }
         }
 
         private class CanvasRegion
@@ -233,8 +270,8 @@ namespace WzComparerR2.CharaSimControl
             {
                 Width = 290,
                 TitleCenterX = 144,
-                SplitterX1 = 6,
-                SplitterX2 = 283,
+                SplitterX1 = 4,
+                SplitterX2 = 284,
                 SkillDescLeft = 90,
                 LevelDescLeft = 8,
                 TextRight = 272,
@@ -244,8 +281,8 @@ namespace WzComparerR2.CharaSimControl
             {
                 Width = 430,
                 TitleCenterX = 215,
-                SplitterX1 = 6,
-                SplitterX2 = 423,
+                SplitterX1 = 4,
+                SplitterX2 = 424,
                 SkillDescLeft = 92,
                 LevelDescLeft = 10,
                 TextRight = 412,

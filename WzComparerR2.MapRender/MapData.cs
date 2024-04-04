@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using WzComparerR2.WzLib;
 using WzComparerR2.Common;
 using WzComparerR2.MapRender.Patches2;
 using WzComparerR2.PluginBase;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using WzComparerR2.Animation;
-
+using WzComparerR2.Rendering;
 
 namespace WzComparerR2.MapRender
 {
@@ -41,6 +41,7 @@ namespace WzComparerR2.MapRender
         public int FieldLimit { get; set; }
 
         public MiniMap MiniMap { get; private set; }
+        public MapLight Light { get; private set; }
         #endregion
 
         public MapScene Scene { get; private set; }
@@ -125,6 +126,10 @@ namespace WzComparerR2.MapRender
             {
                 LoadSkyWhale(node);
             }
+            if ((node = mapImgNode.Nodes["illuminantCluster"]) != null)
+            {
+                LoadIlluminantCluster(node);
+            }
             if ((node = mapImgNode.Nodes["ToolTip"]) != null)
             {
                 LoadTooltip(node);
@@ -132,6 +137,10 @@ namespace WzComparerR2.MapRender
             if ((node = mapImgNode.Nodes["particle"]) != null)
             {
                 LoadParticle(node);
+            }
+            if ((node = mapImgNode.Nodes["light"]) != null)
+            {
+                LoadLight(node);
             }
 
             //计算地图大小
@@ -145,10 +154,7 @@ namespace WzComparerR2.MapRender
             {
                 this.ID = int.Parse(m.Result("$1"));
             }
-            else
-            {
-                this.Name = mapImgNode.Text;
-            }
+            this.Name = mapImgNode.Text;
         }
 
         private void LoadInfo(Wz_Node infoNode)
@@ -311,7 +317,20 @@ namespace WzComparerR2.MapRender
 
         private void LoadPortal(Wz_Node portalNode)
         {
+            string mapID = this.ID.ToString().PadLeft(9, '0');
             var portalTooltipNode = PluginManager.FindWz("String/ToolTipHelp.img/PortalTooltip/" + this.ID);
+            var graphMapNode = PluginManager.FindWz(string.Format("Map/Map/Graph.img/{0:D2}/{1}/portal", this.ID / 10000000, mapID));
+            if (graphMapNode == null)
+            {
+                foreach (var graphImgSubNode in PluginManager.FindWz("Map/Map/Graph.img")?.Nodes ?? Enumerable.Empty<Wz_Node>())
+                {
+                    if (graphImgSubNode.Nodes[mapID] != null)
+                    {
+                        graphMapNode = graphImgSubNode.Nodes[mapID].Nodes["portal"];
+                        break;
+                    }
+                }
+            }
 
             foreach (var node in portalNode.Nodes)
             {
@@ -339,7 +358,22 @@ namespace WzComparerR2.MapRender
                         item.Tooltip = tooltip;
                     }
                 }
-
+                //Graph.img에 따른 이동경로 출력
+                item.GraphTargetMap = new List<int>();
+                if (graphMapNode != null)
+                {
+                    foreach (var graphPortalNode in graphMapNode.Nodes)
+                    {
+                        if (item.Index == graphPortalNode.Nodes["portalNum"].GetValueEx<int>())
+                        {
+                            var targetMapID = graphPortalNode.Nodes["targetMap"].GetValueEx<int>();
+                            if (targetMapID != null)
+                            {
+                                item.GraphTargetMap.Add(targetMapID.Value);
+                            }
+                        }
+                    }
+                }
                 Scene.Fly.Portal.Slots.Add(item);
             }
         }
@@ -380,6 +414,19 @@ namespace WzComparerR2.MapRender
                 var item = SkyWhaleItem.LoadFromNode(node);
                 item.Name = node.Text;
                 Scene.Fly.SkyWhale.Slots.Add(item);
+            }
+        }
+
+        private void LoadIlluminantCluster(Wz_Node illuminantClusterNode)
+        {
+            foreach (var node in illuminantClusterNode.Nodes)
+            {
+                if (node.Nodes.Count > 0)
+                {
+                    var item = IlluminantClusterItem.LoadFromNode(node);
+                    item.Name = node.Text;
+                    Scene.Fly.IlluminantCluster.Slots.Add(item);
+                }
             }
         }
 
@@ -436,6 +483,42 @@ namespace WzComparerR2.MapRender
                 item.Name = node.Text;
                 Scene.Effect.Slots.Add(item);
             }
+        }
+
+        private void LoadLight(Wz_Node node)
+        {
+            var mapLight = new MapLight()
+            {
+                Mode = node.Nodes["mode"].GetValueEx(0),
+                AmbientColor = node.Nodes["ambient_color"].GetXnaColor(),
+                DirectionalLightColor = node.Nodes["directional_light_color"].GetXnaColor(),
+                LuminanceLimit = node.Nodes["luminance_limit"].GetValueEx(0f),
+                BackColor = node.Nodes["back_color"].GetXnaColor(),
+            };
+
+            for (int i=0; ; i++)
+            {
+                var lightNode = node.Nodes[i.ToString()];
+                if (lightNode == null)
+                {
+                    break;
+                }
+
+                var light = new Light2D()
+                {
+                    Type = lightNode.Nodes["type"].GetValueEx(0),
+                    X = lightNode.Nodes["x"].GetValueEx(0),
+                    Y = lightNode.Nodes["y"].GetValueEx(0),
+                    Color = lightNode.Nodes["color"].GetXnaColor(),
+                    InnerRadius = lightNode.Nodes["inner_radius"].GetValueEx(0),
+                    OuterRadius = lightNode.Nodes["outer_radius"].GetValueEx(0),
+                    InnerAngle = lightNode.Nodes["inner_angle"].GetValueEx(0),
+                    OuterAngle = lightNode.Nodes["outer_angle"].GetValueEx(0),
+                    DirectionAngle = lightNode.Nodes["direction_angle"].GetValueEx(0),
+                };
+                mapLight.Lights.Add(light);
+            }
+            this.Light = mapLight;
         }
 
         private void CalcMapSize()
@@ -535,6 +618,10 @@ namespace WzComparerR2.MapRender
                         {
                             PreloadResource(resLoader, (PortalItem)item);
                         }
+                        else if (item is IlluminantClusterItem)
+                        {
+                            PreloadResource(resLoader, (IlluminantClusterItem)item);
+                        }
                         else if (item is ReactorItem)
                         {
                             PreloadResource(resLoader, (ReactorItem)item);
@@ -580,7 +667,7 @@ namespace WzComparerR2.MapRender
             var aniItem = resLoader.LoadAnimationData(path);
             obj.View = new ObjItem.ItemView()
             {
-                Animator = CreateAnimator(aniItem)
+                Animator = CreateAnimator(aniItem, obj.SpineAni)
             };
         }
 
@@ -728,6 +815,41 @@ namespace WzComparerR2.MapRender
             portal.View = view;
         }
 
+        private void PreloadResource(ResourceLoader resLoader, IlluminantClusterItem illuminantCluster)
+        {
+            string path;
+
+            var view = new IlluminantClusterItem.ItemView();
+            path = $@"Map\Obj\sellas.img\fieldGimmick\cluster\{illuminantCluster.StartPoint * 2}";
+
+            var aniNode = PluginManager.FindWz(path);
+            if (aniNode != null)
+            {
+                var aniData = resLoader.LoadAnimationData(aniNode);
+                if (aniData != null)
+                {
+                    view.Animator = CreateAnimator(aniData);
+                }
+            }
+
+            illuminantCluster.StartView = view;
+
+            view = new IlluminantClusterItem.ItemView();
+            path = $@"Map\Obj\sellas.img\fieldGimmick\cluster\{illuminantCluster.EndPoint * 2 + 1}";
+
+            aniNode = PluginManager.FindWz(path);
+            if (aniNode != null)
+            {
+                var aniData = resLoader.LoadAnimationData(aniNode);
+                if (aniData != null)
+                {
+                    view.Animator = CreateAnimator(aniData);
+                }
+            }
+
+            illuminantCluster.EndView = view;
+        }
+
         private void PreloadResource(ResourceLoader resLoader, ReactorItem reactor)
         {
             string path = $@"Reactor\{reactor.ID:D7}.img";
@@ -839,38 +961,55 @@ namespace WzComparerR2.MapRender
 
         private object CreateAnimator(object animationData, string aniName = null)
         {
-            if (animationData is RepeatableFrameAnimationData)
-            {
-                var aniData = (RepeatableFrameAnimationData)animationData;
-                var animator = new RepeatableFrameAnimator(aniData);
-                return animator;
+            switch (animationData) {
+                case RepeatableFrameAnimationData repFrameAni:
+                    return new RepeatableFrameAnimator(repFrameAni);
+
+                case FrameAnimationData frameAni:
+                    return new FrameAnimator(frameAni);
+
+                case ISpineAnimationData spineAniData:
+                    var spineAni = spineAniData.CreateAnimator();
+                    if (aniName != null)
+                    {
+                        spineAni.SelectedAnimationName = aniName;
+                    }
+                    return spineAni;
+
+                default:
+                    return null;
             }
-            else if (animationData is FrameAnimationData)
-            {
-                var aniData = (FrameAnimationData)animationData;
-                var animator = new FrameAnimator(aniData);
-                return animator;
-            }
-            else if (animationData is SpineAnimationData)
-            {
-                var aniData = (SpineAnimationData)animationData;
-                var animator = new SpineAnimator(aniData);
-                if (aniName != null)
-                {
-                    animator.SelectedAnimationName = aniName;
-                }
-                return animator;
-            }
-            return null;
         }
 
         private void AddMobAI(StateMachineAnimator ani)
         {
+            var actions = new[] { "stand", "say", "mouse", "move", "hand", "laugh", "eye" };
             ani.AnimationEnd += (o, e) =>
             {
-                if (e.CurrentState == "regen" && ani.Data.States.Contains("stand"))
+                switch(e.CurrentState)
                 {
-                    e.NextState = "stand";
+                    case "regen":
+                        if (ani.Data.States.Contains("stand")) e.NextState = "stand";
+                        else if (ani.Data.States.Contains("fly")) e.NextState = "fly";
+                        break;
+
+                    case "stand":
+                        if (ani.Data.States.Contains("jump") && this.random.NextPercent(0.05f))
+                        {
+                            e.NextState = "jump";
+                        }
+                        else if (ani.Data.States.Contains("move") && this.random.NextPercent(0.3f))
+                        {
+                            e.NextState = "move";
+                        }
+                        else
+                        {
+                            e.NextState = e.CurrentState;
+                        }
+                        break;
+
+                    default: 
+                        goto case "regen";
                 }
             };
         }

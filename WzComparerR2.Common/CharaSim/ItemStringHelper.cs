@@ -101,7 +101,7 @@ namespace WzComparerR2.CharaSim
                 case GearPropType.bdR: return "攻击首领怪时，伤害+" + value + "%";
                 case GearPropType.incIMDR:
                 case GearPropType.imdR: return "无视怪物防御率：+" + value + "%";
-                case GearPropType.limitBreak: return "伤害上限突破至" + value + "。";
+                case GearPropType.limitBreak:return "伤害上限突破至" + ToChineseNumberExpr(value) + "。";
                 case GearPropType.reduceReq: return "装备等级降低：- " + value;
                 case GearPropType.nbdR: return "攻击普通怪物时，伤害+" + value + "%";
 
@@ -141,6 +141,9 @@ namespace WzComparerR2.CharaSim
 
                 case GearPropType.incARC: return "神秘之力 : " + sign + value;
                 case GearPropType.incAUT: return "原初之力 : " + sign + value;
+
+                case GearPropType.Etuc: return "可进行卓越强化。（最多：" + value + "次）";
+                case GearPropType.CuttableCount: return "可使用剪刀：" + value + "次";
                 default: return null;
             }
         }
@@ -347,6 +350,10 @@ namespace WzComparerR2.CharaSim
                 case GearType.weaponBelt: return "武器腰带";
 
                 case GearType.ornament: return "饰品";
+
+                case GearType.chakram: return "环刃";
+                case GearType.hexSeeker: return "索魂器";
+
                 default: return null;
             }
         }
@@ -361,17 +368,15 @@ namespace WzComparerR2.CharaSim
             switch (attackSpeed)
             {
                 case 2:
-                case 3: return "比较快";
+                case 3: return "极快";
                 case 4:
                 case 5: return "快";
                 case 6: return "普通";
                 case 7:
-                case 8: return "慢";
-                case 9: return "比较慢";
+                case 8: return "缓慢";
+                case 9: return "较慢";
                 default:
-                    if (attackSpeed < 2) return "吃屎一样快";
-                    else if (attackSpeed > 9) return "吃屎一样慢";
-                    else return attackSpeed.ToString();
+                    return attackSpeed.ToString();
             }
         }
 
@@ -405,7 +410,7 @@ namespace WzComparerR2.CharaSim
                 case GearType.crossBowThimble: return "箭神职业群可穿戴装备";
                 case GearType.shadowerSheath: return "侠盗职业群可穿戴装备";
                 case GearType.nightLordPoutch: return "隐士职业群可穿戴装备";
-                case GearType.katara: return "暗影双刀职业群可穿戴装备";
+                case GearType.katara: return "暗影双刀可穿戴装备";
                 case GearType.viperWristband: return "冲锋队长职业群可穿戴装备";
                 case GearType.captainSight: return "船长职业群可穿戴装备";
                 case GearType.connonGunPowder: 
@@ -478,6 +483,9 @@ namespace WzComparerR2.CharaSim
                 case GearType.boxingSky: return GetExtraJobReqString(175);
 
                 case GearType.ornament: return GetExtraJobReqString(162);
+
+                case GearType.chakram:
+                case GearType.hexSeeker: return GetExtraJobReqString(154);
                 default: return null;
             }
         }
@@ -512,6 +520,7 @@ namespace WzComparerR2.CharaSim
                 case 142: return "超能力者可穿戴装备";
                 case 151: return "御剑骑士可穿戴装备";
                 case 152: return "圣晶使徒可穿戴装备";
+                case 154: return "飞刃沙士可穿戴装备";
                 case 155: return "影魂异人可穿戴装备";
                 case 162: return "元素师可穿戴装备";
                 case 164: return "虎影可穿戴装备";
@@ -741,6 +750,39 @@ namespace WzComparerR2.CharaSim
                 case 14212: return "超能力者(4次)";
             }
             return null;
+        }
+
+        private static string ToChineseNumberExpr(int value)
+        {
+            var sb = new StringBuilder(16);
+            bool firstPart = true;
+            if (value < 0)
+            {
+                sb.Append("-");
+                value = -value; // just ignore the exception -2147483648
+            }
+            if (value >= 1_0000_0000)
+            {
+                int part = value / 1_0000_0000;
+                sb.AppendFormat("{0}亿", part);
+                value -= part * 1_0000_0000;
+                firstPart = false;
+            }
+            if (value >= 1_0000)
+            {
+                int part = value / 1_0000;
+                sb.Append(firstPart ? null : " ");
+                sb.AppendFormat("{0}万", part);
+                value -= part * 1_0000;
+                firstPart = false;
+            }
+            if (value > 0)
+            {
+                sb.Append(firstPart ? null : " ");
+                sb.AppendFormat("{0}", value);
+            }
+
+            return sb.Length > 0 ? sb.ToString() : "0";
         }
     }
 }

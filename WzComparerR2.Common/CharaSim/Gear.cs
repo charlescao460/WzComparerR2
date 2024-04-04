@@ -215,7 +215,8 @@ namespace WzComparerR2.CharaSim
             int _type = (int)type;
             return (_type >= 140 && _type <= 149)
                 || (_type >= 152 && _type <= 159)
-                || type == GearType.boxingCannon;
+                || type == GearType.boxingCannon
+                || type == GearType.chakram;
         }
 
         public static bool IsMechanicGear(GearType type)
@@ -319,6 +320,8 @@ namespace WzComparerR2.CharaSim
                     return GearType.breathShooter;
                 case 1403:
                     return GearType.boxingCannon;
+                case 1404:
+                    return GearType.chakram;
             }
             if (code / 10000 == 135)
             {
@@ -787,6 +790,13 @@ namespace WzComparerR2.CharaSim
                     gear.Props.Remove(GearPropType.incMMP);
                     gear.Props.Add(GearPropType.incMDF, value);
                 }
+            }
+
+            //检查道具默认的剪刀次数
+            var cuttableCountOverride = findNode?.Invoke(@$"Etc\KarmaScissor_WZ2.img\ItemList\{gear.ItemID}")?.GetValueEx<int>();
+            if (cuttableCountOverride != null && cuttableCountOverride > 0)
+            {
+                gear.Props[GearPropType.CuttableCount] = cuttableCountOverride.Value;
             }
 
             //备份标准属性

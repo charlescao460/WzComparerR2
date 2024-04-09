@@ -15,9 +15,7 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2
     {
-        protected int AttackPercentage = 15;
-        private static Random _randomGenerator = new Random();
-        private List<Point> _boundingBoxPoints;
+        private List<Point> _boundingBoxPoints = new List<Point>();
 
         private void UpdateAllItems(SceneNode node, TimeSpan elapsed)
         {
@@ -52,20 +50,11 @@ namespace WzComparerR2.MapRender
                         {
                             if (smAni.GetCurrent() == null) //当前无动作
                             {
-                                string attackState = smAni.Data.States.FirstOrDefault(s => s.Contains("attack"));
-                                if (attackState != null && (_randomGenerator.Next(100) < AttackPercentage))
-                                {
-                                    smAni.SetAnimation(attackState);
-                                }
-                                else
-                                {
-                                    smAni.SetAnimation(smAni.Data.States[0]);
-                                }
+                                smAni.SetAnimation(smAni.Data.States[0]); //动作0
                             }
                             smAni.Update(elapsed);
-                            UpdateBoundingBox(life);
                         }
-
+                        UpdateBoundingBox(life);
                         life.View.Time += (int)elapsed.TotalMilliseconds;
                     }
                     else if (item is PortalItem)
@@ -182,11 +171,7 @@ namespace WzComparerR2.MapRender
                         .FrameAnimator
                         .CurrentFrameIndex;
                     var frame = dict[currentState].Frames[currentFrame];
-                    if (frame.BoundingBox == null)
-                    {
-                        return null;
-                    }
-                    var raw = frame.BoundingBox.Value;
+                    var raw = frame.Rectangle;
                     return new Rectangle(life.X - (raw.Width / 2),
                         life.Cy - raw.Height,
                         raw.Width,

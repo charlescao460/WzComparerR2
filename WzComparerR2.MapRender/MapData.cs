@@ -1002,7 +1002,7 @@ namespace WzComparerR2.MapRender
                         {
                             e.NextState = "move";
                         }
-                        else if (ani.Data.States.Contains("attack1") && this.random.NextPercent(0.2f))
+                        else if (ani.Data.States.Contains("attack1") && this.random.NextPercent(0.1f))
                         {
                             e.NextState = "attack1";
                         }

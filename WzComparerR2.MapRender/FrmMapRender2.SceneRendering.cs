@@ -170,6 +170,12 @@ namespace WzComparerR2.MapRender
                     int currentFrame = (animator.Data as StateMachineAnimator.FrameStateMachineData)
                         .FrameAnimator
                         .CurrentFrameIndex;
+                    if (currentState.Contains("attack") || currentState.Contains("move"))
+                    {
+                        // Fix: Some mobs' attacking moving bounding box is not tight. 
+                        currentState = "stand";
+                        currentFrame = 0;
+                    }
                     var frame = dict[currentState].Frames[currentFrame];
                     var raw = frame.Rectangle;
                     return new Rectangle(life.X - (raw.Width / 2),
@@ -600,7 +606,7 @@ namespace WzComparerR2.MapRender
                 this.lightRenderer.DrawSpotLight(light2D);
             }
             // render texture light
-            foreach(var container in GetSceneContainers(this.mapData.Scene))
+            foreach (var container in GetSceneContainers(this.mapData.Scene))
             {
                 foreach (var item in container.Slots)
                 {
@@ -668,7 +674,7 @@ namespace WzComparerR2.MapRender
                     }
                 }
 
-_pop:
+            _pop:
                 if (sceneStack.Count > 0)
                 {
                     currNode = sceneStack.Pop();

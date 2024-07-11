@@ -170,16 +170,10 @@ namespace WzComparerR2.MapRender
                     int currentFrame = (animator.Data as StateMachineAnimator.FrameStateMachineData)
                         .FrameAnimator
                         .CurrentFrameIndex;
-                    if (currentState.Contains("attack") || currentState.Contains("move"))
-                    {
-                        // Fix: Some mobs' attacking moving bounding box is not tight. 
-                        currentState = "stand";
-                        currentFrame = 0;
-                    }
                     var frame = dict[currentState].Frames[currentFrame];
-                    var raw = frame.Rectangle;
+                    var raw = frame.BoundingBox.Value;
                     return new Rectangle(life.X - (raw.Width / 2),
-                        life.Cy - raw.Height,
+                        life.Cy - raw.Height + Math.Abs(life.Cy - life.Y),
                         raw.Width,
                         raw.Height);
                 }

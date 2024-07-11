@@ -44,6 +44,7 @@ namespace WzComparerR2.MapRender
             this.patchVisibility = new PatchVisibility();
             this.patchVisibility.FootHoldVisible = false;
             this.patchVisibility.LadderRopeVisible = false;
+            this.patchVisibility.MobNameVisible = false;
             this.patchVisibility.SkyWhaleVisible = false;
             this.patchVisibility.IlluminantClusterPathVisible = false;
 

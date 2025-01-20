@@ -58,74 +58,76 @@ namespace WzComparerR2.CharaSimControl
             //绘制道具
             int picHeight;
             Bitmap itemBmp = RenderItem(out picHeight);
-            Bitmap recipeInfoBmp = null;
-            Bitmap recipeItemBmp = null;
+            List<Bitmap> recipeInfoBmps = new();
+            List<Bitmap> recipeItemBmps = new();
             Bitmap setItemBmp = null;
 
             //图纸相关
-            int recipeID;
-            if (this.item.Specs.TryGetValue(ItemSpecType.recipe, out recipeID))
+            if (this.item.Recipes.Count > 0)
             {
-                int recipeSkillID = recipeID/10000;
-                Recipe recipe = null;
-                //寻找配方
-                Wz_Node recipeNode = PluginBase.PluginManager.FindWz(string.Format(@"Skill\Recipe_{0}.img\{1}", recipeSkillID, recipeID));
-                if (recipeNode != null)
+                foreach (int recipeID in this.item.Recipes)
                 {
-                    recipe = Recipe.CreateFromNode(recipeNode);
-                }
-                //生成配方图像
-                if (recipe != null)
-                {
-                    if (this.LinkRecipeInfo)
+                    int recipeSkillID = recipeID / 10000;
+                    Recipe recipe = null;
+                    //寻找配方
+                    Wz_Node recipeNode = PluginBase.PluginManager.FindWz(string.Format(@"Skill\Recipe_{0}.img\{1}", recipeSkillID, recipeID));
+                    if (recipeNode != null)
                     {
-                        recipeInfoBmp = RenderLinkRecipeInfo(recipe);
+                        recipe = Recipe.CreateFromNode(recipeNode);
                     }
-
-                    if (this.LinkRecipeItem)
+                    //生成配方图像
+                    if (recipe != null)
                     {
-                        int itemID = recipe.MainTargetItemID;
-                        int itemIDClass = itemID / 1000000;
-                        if (itemIDClass == 1) //通过ID寻找装备
+                        if (this.LinkRecipeInfo)
                         {
-                            Wz_Node charaWz = PluginManager.FindWz(Wz_Type.Character);
-                            if (charaWz != null)
-                            {
-                                string imgName = itemID.ToString("d8")+".img";
-                                foreach (Wz_Node node0 in charaWz.Nodes)
-                                {
-                                    Wz_Node imgNode = node0.FindNodeByPath(imgName, true);
-                                    if (imgNode != null)
-                                    {
-                                        Gear gear = Gear.CreateFromNode(imgNode, path=>PluginManager.FindWz(path));
-                                        if (gear != null)
-                                        {
-                                            recipeItemBmp = RenderLinkRecipeGear(gear);
-                                        }
+                            recipeInfoBmps.Add(RenderLinkRecipeInfo(recipe));
+                        }
 
-                                        break;
+                        if (this.LinkRecipeItem)
+                        {
+                            int itemID = recipe.MainTargetItemID;
+                            int itemIDClass = itemID / 1000000;
+                            if (itemIDClass == 1) //通过ID寻找装备
+                            {
+                                Wz_Node charaWz = PluginManager.FindWz(Wz_Type.Character);
+                                if (charaWz != null)
+                                {
+                                    string imgName = itemID.ToString("d8") + ".img";
+                                    foreach (Wz_Node node0 in charaWz.Nodes)
+                                    {
+                                        Wz_Node imgNode = node0.FindNodeByPath(imgName, true);
+                                        if (imgNode != null)
+                                        {
+                                            Gear gear = Gear.CreateFromNode(imgNode, path => PluginManager.FindWz(path));
+                                            if (gear != null)
+                                            {
+                                                recipeItemBmps.Add(RenderLinkRecipeGear(gear));
+                                            }
+
+                                            break;
+                                        }
                                     }
                                 }
                             }
-                        }
-                        else if (itemIDClass >= 2 && itemIDClass <= 5) //通过ID寻找道具
-                        {
-                            Wz_Node itemWz = PluginManager.FindWz(Wz_Type.Item);
-                            if (itemWz != null)
+                            else if (itemIDClass >= 2 && itemIDClass <= 5) //通过ID寻找道具
                             {
-                                string imgClass = (itemID / 10000).ToString("d4") + ".img\\"+itemID.ToString("d8");
-                                foreach (Wz_Node node0 in itemWz.Nodes)
+                                Wz_Node itemWz = PluginManager.FindWz(Wz_Type.Item);
+                                if (itemWz != null)
                                 {
-                                    Wz_Node imgNode = node0.FindNodeByPath(imgClass, true);
-                                    if (imgNode != null)
+                                    string imgClass = (itemID / 10000).ToString("d4") + ".img\\" + itemID.ToString("d8");
+                                    foreach (Wz_Node node0 in itemWz.Nodes)
                                     {
-                                        Item item = Item.CreateFromNode(imgNode, PluginManager.FindWz);
-                                        if (item != null)
+                                        Wz_Node imgNode = node0.FindNodeByPath(imgClass, true);
+                                        if (imgNode != null)
                                         {
-                                            recipeItemBmp = RenderLinkRecipeItem(item);
-                                        }
+                                            Item item = Item.CreateFromNode(imgNode, PluginManager.FindWz);
+                                            if (item != null)
+                                            {
+                                                recipeItemBmps.Add(RenderLinkRecipeItem(item));
+                                            }
 
-                                        break;
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -134,11 +136,10 @@ namespace WzComparerR2.CharaSimControl
                 }
             }
 
-            int setID;
-            if (this.item.Props.TryGetValue(ItemPropType.setItemID, out setID))
+            if (this.item.Props.TryGetValue(ItemPropType.setItemID, out long setID))
             {
                 SetItem setItem;
-                if (CharaSimLoader.LoadedSetItems.TryGetValue(setID, out setItem))
+                if (CharaSimLoader.LoadedSetItems.TryGetValue((int)setID, out setItem))
                 {
                     setItemBmp = RenderSetItem(setItem);
                 }
@@ -150,26 +151,31 @@ namespace WzComparerR2.CharaSimControl
             Point recipeItemOrigin = Point.Empty;
             Point setItemOrigin = Point.Empty;
 
-            if (recipeItemBmp != null)
+            if (recipeItemBmps.Count > 0)
             {
+                // layout:
+                //   item        |  recipeItem
+                //   recipeInfo  |
                 recipeItemOrigin.X = totalSize.Width;
-                totalSize.Width += recipeItemBmp.Width;
+                totalSize.Width += recipeItemBmps.Max(bmp => bmp.Width);
 
-                if (recipeInfoBmp != null)
+                if (recipeInfoBmps.Count > 0)
                 {
-                    recipeInfoOrigin.X = itemBmp.Width - recipeInfoBmp.Width;
+                    recipeInfoOrigin.X = itemBmp.Width - recipeInfoBmps.Max(bmp => bmp.Width);
                     recipeInfoOrigin.Y = picHeight;
-                    totalSize.Height = Math.Max(picHeight + recipeInfoBmp.Height, recipeItemBmp.Height);
+                    totalSize.Height = Math.Max(picHeight + recipeInfoBmps.Sum(bmp => bmp.Height), recipeItemBmps.Sum(bmp => bmp.Height));
                 }
                 else
                 {
-                    totalSize.Height = Math.Max(picHeight, recipeItemBmp.Height);
+                    totalSize.Height = Math.Max(picHeight, recipeItemBmps.Sum(bmp => bmp.Height));
                 }
             }
-            else if (recipeInfoBmp != null)
+            else if (recipeInfoBmps.Count > 0)
             {
-                totalSize.Width += recipeInfoBmp.Width;
-                totalSize.Height = Math.Max(picHeight, recipeInfoBmp.Height);
+                // layout:
+                //   item  |  recipeInfo
+                totalSize.Width += recipeInfoBmps.Max(bmp => bmp.Width);
+                totalSize.Height = Math.Max(picHeight, recipeInfoBmps.Sum(bmp => bmp.Height));
                 recipeInfoOrigin.X = itemBmp.Width;
             }
             if (setItemBmp != null)
@@ -199,17 +205,25 @@ namespace WzComparerR2.CharaSimControl
             }
 
             //绘制配方
-            if (recipeInfoBmp != null)
+            if (recipeInfoBmps.Count > 0)
             {
-                g.DrawImage(recipeInfoBmp, recipeInfoOrigin.X, recipeInfoOrigin.Y,
-                    new Rectangle(Point.Empty, recipeInfoBmp.Size), GraphicsUnit.Pixel);
+                for (int i = 0, y = recipeInfoOrigin.Y; i < recipeInfoBmps.Count; i++)
+                {
+                    g.DrawImage(recipeInfoBmps[i], recipeInfoOrigin.X, y,
+                        new Rectangle(Point.Empty, recipeInfoBmps[i].Size), GraphicsUnit.Pixel);
+                    y += recipeInfoBmps[i].Height;
+                }
             }
 
             //绘制产出道具
-            if (recipeItemBmp != null)
+            if (recipeItemBmps.Count > 0)
             {
-                g.DrawImage(recipeItemBmp, recipeItemOrigin.X, recipeItemOrigin.Y,
-                    new Rectangle(Point.Empty, recipeItemBmp.Size), GraphicsUnit.Pixel);
+                for (int i = 0, y = recipeItemOrigin.Y; i < recipeItemBmps.Count; i++)
+                {
+                    g.DrawImage(recipeItemBmps[i], recipeItemOrigin.X, y,
+                        new Rectangle(Point.Empty, recipeItemBmps[i].Size), GraphicsUnit.Pixel);
+                    y += recipeItemBmps[i].Height;
+                }
             }
 
             //绘制套装
@@ -221,10 +235,10 @@ namespace WzComparerR2.CharaSimControl
 
             if (itemBmp != null)
                 itemBmp.Dispose();
-            if (recipeInfoBmp != null)
-                recipeInfoBmp.Dispose();
-            if (recipeItemBmp != null)
-                recipeItemBmp.Dispose();
+            if (recipeInfoBmps.Count > 0)
+                recipeInfoBmps.ForEach(bmp => bmp.Dispose());
+            if (recipeItemBmps.Count > 0)
+                recipeItemBmps.ForEach(bmp => bmp.Dispose());
             if (setItemBmp != null)
                 setItemBmp.Dispose();
 
@@ -232,11 +246,10 @@ namespace WzComparerR2.CharaSimControl
             return tooltip;
         }
 
-
         private Bitmap RenderItem(out int picH)
         {
             StringFormat format = (StringFormat)StringFormat.GenericDefault.Clone();
-            int value;
+            long value;
 
             //物品标题
             StringResult sr;
@@ -283,7 +296,13 @@ namespace WzComparerR2.CharaSimControl
             if (!string.IsNullOrEmpty(attr))
             {
                 g.DrawString(attr, GearGraphics.ItemDetailFont, GearGraphics.GearNameBrushC, tooltip.Width / 2, picH, format);
-                picH += 19;
+                if (attr.Contains("\n")) {
+                    picH += 31;
+                }
+                else
+                {
+                    picH += 19;
+                }
                 hasPart2 = true;
             }
 
@@ -438,12 +457,12 @@ namespace WzComparerR2.CharaSimControl
 
 
             //绘制配方需求
-            if (item.Specs.TryGetValue(ItemSpecType.recipe, out value))
+            if (item.Recipes.Count > 0)
             {
-                int reqSkill, reqSkillLevel;
+                long reqSkill, reqSkillLevel;
                 if (!item.Specs.TryGetValue(ItemSpecType.reqSkill, out reqSkill))
                 {
-                    reqSkill = value / 10000 * 10000;
+                    reqSkill = item.Recipes[0] / 10000 * 10000;
                 }
 
                 if (!item.Specs.TryGetValue(ItemSpecType.reqSkillLevel, out reqSkillLevel))
@@ -458,7 +477,7 @@ namespace WzComparerR2.CharaSimControl
                 picH += 17;
 
                 //技能标题
-                if (StringLinker == null || !StringLinker.StringSkill.TryGetValue(reqSkill, out sr))
+                if (StringLinker == null || !StringLinker.StringSkill.TryGetValue((int)reqSkill, out sr))
                 {
                     sr = new StringResult();
                     sr.Name = "(null)";
@@ -474,7 +493,7 @@ namespace WzComparerR2.CharaSimControl
 
         private string GetItemAttributeString()
         {
-            int value;
+            long value;
             List<string> tags = new List<string>();
 
             if (item.Props.TryGetValue(ItemPropType.quest, out value) && value != 0)
@@ -496,6 +515,14 @@ namespace WzComparerR2.CharaSimControl
             if (item.Props.TryGetValue(ItemPropType.accountSharable, out value) && value != 0)
             {
                 tags.Add(ItemStringHelper.GetItemPropString(ItemPropType.accountSharable, value));
+            }
+            if (item.Props.TryGetValue(ItemPropType.accountSharableAfterExchange, out value) && value != 0)
+            {
+                tags.Add(ItemStringHelper.GetItemPropString(ItemPropType.accountSharableAfterExchange, value));
+            }
+            if (item.Props.TryGetValue(ItemPropType.mintable, out value))
+            {
+                tags.Add(ItemStringHelper.GetItemPropString(ItemPropType.mintable, value));
             }
 
             return tags.Count > 0 ? string.Join(", ", tags.ToArray()) : null;
@@ -561,7 +588,7 @@ namespace WzComparerR2.CharaSimControl
             return renderer.Render();
         }
 
-        private bool TryGetNickResource(int nickTag, out Wz_Node resNode)
+        private bool TryGetNickResource(long nickTag, out Wz_Node resNode)
         {
             resNode = PluginBase.PluginManager.FindWz("UI/NameTag.img/nick/" + nickTag);
             return resNode != null;

@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.IO.Compression;
+using System.Threading;
+using System.Threading.Tasks;
 using WzComparerR2.Patcher.Builder;
+using PartialStream = WzComparerR2.WzLib.Utilities.PartialStream;
 
 namespace WzComparerR2.Patcher
 {
@@ -13,6 +17,7 @@ namespace WzComparerR2.Patcher
         {
             this.patchFile = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read,
                 0x4000, FileOptions.Asynchronous | FileOptions.RandomAccess);
+            this.NoticeEncoding = Encoding.Default;
         }
 
         private const int MAX_PATH = 260;
@@ -24,6 +29,8 @@ namespace WzComparerR2.Patcher
         private string noticeText;
         private List<PatchPartContext> patchParts;
         private Dictionary<string, uint> oldFileHash;
+
+        public Encoding NoticeEncoding { get; set; }
 
         public List<PatchPartContext> PatchParts
         {
@@ -48,11 +55,10 @@ namespace WzComparerR2.Patcher
         /// <summary>
         /// 验证并初始化补丁解压流。
         /// </summary>
-        public void OpenDecompress()
+        public void OpenDecompress(CancellationToken cancellationToken)
         {
-            this.patchBlock = TrySplit(this.patchFile);
-
-            if (this.patchBlock == null)
+            var patchBlock = TrySplit(this.patchFile);
+            if (patchBlock == null)
             {
                 throw new Exception("Decompress Error, cannot find patch block from the stream.");
             }
@@ -61,7 +67,7 @@ namespace WzComparerR2.Patcher
             patchBlock.Seek(8, SeekOrigin.Begin);
             int ver = r.ReadInt32();
             uint checkSum0 = r.ReadUInt32();
-            uint checkSum1 = CheckSum.ComputeHash(patchBlock, patchBlock.Length - 0x10);
+            uint checkSum1 = CheckSum.ComputeHash(patchBlock, patchBlock.Length - 0x10, cancellationToken);
             VerifyCheckSum(checkSum0, checkSum1, "PatchFile", "0");
 
             patchBlock.Seek(16, SeekOrigin.Begin);
@@ -70,80 +76,105 @@ namespace WzComparerR2.Patcher
             {
                 patchBlock.Seek(-2, SeekOrigin.Current);
             }
-            this.inflateStream = new InflateStream(patchBlock);
+
+#if NET6_0_OR_GREATER
+            // wrap InflateStream with BufferedStream for better performance in net6+
+            bool buffered = true;
+#else
+            bool buffered = false;
+#endif
+            this.patchBlock = patchBlock;
+            this.inflateStream = new InflateStream(patchBlock, buffered);
         }
 
         private PartialStream TrySplit(Stream metaStream)
         {
             metaStream.Seek(0, SeekOrigin.Begin);
             BinaryReader r = new BinaryReader(metaStream);
-            PartialStream patchBlock;
 
-            if (r.ReadUInt16() == 0x5a4d)//"MZ"
+            bool TryCheckFileEnding(out PartialStream patchBlock, out string noticeText)
             {
                 metaStream.Seek(-4, SeekOrigin.End);
-                ulong check = r.ReadUInt32();
-                if (check == 0xf2f7fbf3)
+                uint check = r.ReadUInt32();
+                if (check != 0xf2f7fbf3) // f3 fb f7 f2
                 {
-                    metaStream.Seek(-12, SeekOrigin.End);
-                    long patchBlockLength = r.ReadUInt32();
-                    long noticeLength = r.ReadUInt32();
-                    metaStream.Seek(-12 - noticeLength - patchBlockLength, SeekOrigin.End);
-                    patchBlock = new PartialStream(metaStream, metaStream.Position, patchBlockLength);
-                    metaStream.Seek(patchBlockLength, SeekOrigin.Current);
-                    noticeText = Encoding.Default.GetString(r.ReadBytes((int)noticeLength));
+                    patchBlock = null;
+                    noticeText = null;
+                    return false;
                 }
-                else //兼容TMS的patch.exe
-                {
-                    metaStream.Seek(-8, SeekOrigin.End);
-                    check = r.ReadUInt64();
-                    if (check == 0xf2f7fbf3)
-                    {
-                        metaStream.Seek(-24, SeekOrigin.End);
-                        long patchBlockLength = r.ReadInt64();
-                        long noticeLength = r.ReadInt64();
-                        metaStream.Seek(-24 - noticeLength - patchBlockLength, SeekOrigin.End);
-                        patchBlock = new PartialStream(metaStream, metaStream.Position, patchBlockLength);
-                        metaStream.Seek(patchBlockLength, SeekOrigin.Current);
-                        noticeText = Encoding.Default.GetString(r.ReadBytes((int)noticeLength));
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-            }
-            else
-            {
-                patchBlock = new PartialStream(metaStream, 0, metaStream.Length);
+
+                metaStream.Seek(-12, SeekOrigin.End);
+                long patchBlockLength = r.ReadUInt32();
+                long noticeLength = r.ReadUInt32();
+                metaStream.Seek(-12 - noticeLength - patchBlockLength, SeekOrigin.End);
+                patchBlock = new PartialStream(metaStream, metaStream.Position, patchBlockLength);
+                metaStream.Seek(patchBlockLength, SeekOrigin.Current);
+                noticeText = this.NoticeEncoding.GetString(r.ReadBytes((int)noticeLength));
+                return true;
             }
 
-            if (patchBlock != null)
+            bool TryCheckFileEnding64(out PartialStream patchBlock, out string noticeText)
             {
-                patchBlock.Seek(0, SeekOrigin.Begin);
-                r = new BinaryReader(patchBlock);
-                if (Encoding.ASCII.GetString(r.ReadBytes(8)) == "WzPatch\x1A")
+                metaStream.Seek(-8, SeekOrigin.End);
+                ulong check = r.ReadUInt64();
+                if (check != 0xf2f7fbf3) // f3 fb f7 f2 00 00 00 00
                 {
-                    patchBlock.Seek(0, SeekOrigin.Begin);
+                    patchBlock = null;
+                    noticeText = null;
+                    return false;
                 }
-                else
+
+                metaStream.Seek(-24, SeekOrigin.End);
+                long patchBlockLength = r.ReadInt64();
+                long noticeLength = r.ReadInt64();
+                metaStream.Seek(-24 - noticeLength - patchBlockLength, SeekOrigin.End);
+                patchBlock = new PartialStream(metaStream, metaStream.Position, patchBlockLength);
+                metaStream.Seek(patchBlockLength, SeekOrigin.Current);
+                noticeText = this.NoticeEncoding.GetString(r.ReadBytes((int)noticeLength));
+                return true;
+            }
+
+            PartialStream patchBlock;
+            string noticeText;
+            if (r.ReadUInt16() == 0x5a4d)//"MZ"
+            {
+                if (!(TryCheckFileEnding(out patchBlock, out noticeText) || TryCheckFileEnding64(out patchBlock, out noticeText)))
                 {
                     return null;
                 }
             }
+            else
+            {
+                // for TMS264 patcher, also check file ending
+                if (!TryCheckFileEnding64(out patchBlock, out noticeText))
+                {
+                    patchBlock = new PartialStream(metaStream, 0, metaStream.Length);
+                    noticeText = null;
+                }
+            }
 
+            // check file header
+            patchBlock.Seek(0, SeekOrigin.Begin);
+            r = new BinaryReader(patchBlock);
+            if (!r.ReadBytes(8).AsSpan().SequenceEqual("WzPatch\x1A"u8))
+            {
+                return null;
+            }
+
+            this.noticeText = noticeText;
+            patchBlock.Seek(0, SeekOrigin.Begin);
             return patchBlock;
         }
 
-        public long PrePatch()
+        public long PrePatch(CancellationToken cancellationToken)
         {
             if (this.inflateStream == null)
             {
-                this.OpenDecompress();
+                this.OpenDecompress(cancellationToken);
             }
-            else if (this.inflateStream.Position > 0) //重置到初始化
+            else
             {
-                this.inflateStream = new InflateStream(this.inflateStream);
+                this.inflateStream.Reset();
             }
 
             var patchParts = new List<PatchPartContext>();
@@ -158,12 +189,12 @@ namespace WzComparerR2.Patcher
             {
                 this.IsKMST1125Format = false;
                 // reset file cursor
-                this.inflateStream = new InflateStream(this.inflateStream);
-                r = new BinaryReader(this.inflateStream);
+                this.inflateStream.Reset();
             }
 
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 PatchPartContext part = ReadPatchPart(r);
 
                 if (part == null)
@@ -259,9 +290,9 @@ namespace WzComparerR2.Patcher
         /// 对于已经解压的patch文件，向客户端执行更新过程。
         /// </summary>
         /// <param Name="mapleStoryFolder">冒险岛客户端所在文件夹。</param>
-        public void Patch(string mapleStoryFolder)
+        public void Patch(string mapleStoryFolder, CancellationToken cancellationToken = default)
         {
-            this.Patch(mapleStoryFolder, mapleStoryFolder);
+            this.Patch(mapleStoryFolder, mapleStoryFolder, cancellationToken);
         }
 
         /// <summary>
@@ -269,7 +300,7 @@ namespace WzComparerR2.Patcher
         /// </summary>
         /// <param Name="mapleStoryFolder">冒险岛客户端所在文件夹。</param>
         /// <param Name="tempFileFolder">生成临时文件的文件夹。</param>
-        public void Patch(string mapleStoryFolder, string tempFileFolder)
+        public void Patch(string mapleStoryFolder, string tempFileFolder, CancellationToken cancellationToken = default)
         {
             string tempDir = CreateRandomDir(tempFileFolder);
 
@@ -285,7 +316,7 @@ namespace WzComparerR2.Patcher
                 {
                     this.oldFileHash = fileHash;
                     this.IsKMST1125Format = true;
-                    this.ValidateFileHash(mapleStoryFolder);
+                    this.ValidateFileHash(mapleStoryFolder, cancellationToken);
                 }
                 else
                 {
@@ -298,6 +329,7 @@ namespace WzComparerR2.Patcher
                 this.patchParts = new List<PatchPartContext>();
                 while (true)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     PatchPartContext part = ReadPatchPart(r);
 
                     if (part == null)
@@ -323,7 +355,7 @@ namespace WzComparerR2.Patcher
             }
             else  //按照调整后顺序执行
             {
-                this.ValidateFileHash(mapleStoryFolder);
+                this.ValidateFileHash(mapleStoryFolder, cancellationToken);
 
                 foreach (PatchPartContext part in this.patchParts)
                 {
@@ -382,12 +414,13 @@ namespace WzComparerR2.Patcher
             }
         }
 
-        private void ValidateFileHash(string msDir)
+        private void ValidateFileHash(string msDir, CancellationToken cancellationToken = default)
         {
             if (this.OldFileHash != null && this.OldFileHash.Count > 0)
             {
                 foreach(var kv in this.OldFileHash)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var part = new PatchPartContext(kv.Key, -1, -1)
                     {
                         OldFilePath = Path.Combine(msDir, kv.Key)
@@ -396,7 +429,7 @@ namespace WzComparerR2.Patcher
                     this.OnPrepareVerifyOldChecksumBegin(part);
                     using (var fs = new FileStream(part.OldFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
-                        oldCheckSum1 = CheckSum.ComputeHash(fs, fs.Length);
+                        oldCheckSum1 = CheckSum.ComputeHash(fs, fs.Length, cancellationToken);
                     }
                     this.OnPrepareVerifyOldChecksumEnd(part);
                     VerifyCheckSum(kv.Value, oldCheckSum1, part.FileName, "origin");
@@ -503,7 +536,7 @@ namespace WzComparerR2.Patcher
             if (part.NewFileLength <= 0)
                 return;
 
-            this.InflateStreamSeek(part.Offset);
+            this.inflateStream.Seek(part.Offset, SeekOrigin.Begin);
             FileStream tempFileStream = new FileStream(tempFileName, FileMode.Create, FileAccess.ReadWrite);
             part.TempFilePath = tempFileName;
             this.OnTempFileCreated(part);
@@ -519,7 +552,7 @@ namespace WzComparerR2.Patcher
             this.OnTempFileClosed(part);
         }
 
-        public void RebuildFile(PatchPartContext part, string tempDir, string msDir)
+        public void RebuildFile(PatchPartContext part, string tempDir, string msDir, CancellationToken cancellationToken = default)
         {
             this.OnPatchStart(part);
             string tempFileName = Path.Combine(tempDir, part.FileName);
@@ -594,7 +627,7 @@ namespace WzComparerR2.Patcher
                 this.OnTempFileCreated(part);
                 uint newCheckSum1 = 0;
 
-                this.InflateStreamSeek(part.Offset);
+                this.inflateStream.Seek(part.Offset, SeekOrigin.Begin);
                 BinaryReader r = new BinaryReader(this.inflateStream);
 
                 double patchProc = 0;
@@ -607,6 +640,7 @@ namespace WzComparerR2.Patcher
                 int preLoadByteCount = 0;
                 while (true)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     cmd = r.ReadInt32();
                     RebuildFileOperation op = null;
                     if (cmd != 0)
@@ -871,24 +905,11 @@ namespace WzComparerR2.Patcher
                 Directory.CreateDirectory(dir);
         }
 
-        private void VerifyCheckSum(uint checksum0, uint checksum1, string fileName, string reason)
+        private void VerifyCheckSum(uint expected, uint actual, string fileName, string reason)
         {
-            if (checksum0 != checksum1)
+            if (expected != actual)
             {
-                throw new Exception(string.Format("CheckSum Error on \"{0}\"({1}). (0x{2:x8}, 0x{3:x8})", fileName, reason, checksum0, checksum1));
-            }
-        }
-
-        private void InflateStreamSeek(long offset)
-        {
-            try
-            {
-                this.inflateStream.Seek(offset, SeekOrigin.Begin);
-            }
-            catch
-            {
-                this.inflateStream = new InflateStream(this.inflateStream);
-                this.inflateStream.Seek(offset, SeekOrigin.Begin);
+                throw new Exception(string.Format("CheckSum Error on \"{0}\"({1}). (expected: 0x{2:x8}, actual: 0x{3:x8})", fileName, reason, expected, actual));
             }
         }
 

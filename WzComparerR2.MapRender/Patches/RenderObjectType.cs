@@ -19,5 +19,6 @@ namespace WzComparerR2.MapRender.Patches
         LadderRope,
         NpcName,
         MobName,
+        Effect,
     }
 }

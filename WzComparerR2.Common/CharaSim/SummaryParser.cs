@@ -148,7 +148,7 @@ namespace WzComparerR2.CharaSim
                         sb.Append(param.CStart);
                         idx++;
                     }
-                    else //无法匹配 取最长的common段
+                    else if (len > 0)//无法匹配 取最长的common段
                     {
                         string key = H.Substring(idx + 1, len);
                         if (Regex.IsMatch(key, @"^\d+$"))
@@ -160,6 +160,10 @@ namespace WzComparerR2.CharaSim
                             sb.Append(0);//默认值
                         }
                         idx += len + 1;
+                    }
+                    else // skip last #
+                    {
+                        idx++;
                     }
                 }
                 else if (H[idx] == '\\')
@@ -235,6 +239,12 @@ namespace WzComparerR2.CharaSim
                 {
                     h = sr.SkillH[level - 1];
                 }
+                else if (sr.SkillH.Count == 1)
+                {
+                    h = sr.SkillH[0];
+                }
+                var levelCommon = level <= skill.levelCommon.Count ? skill.levelCommon[level - 1] : skill.common;
+                return GetSkillSummary(h, level, levelCommon, param, options);
             }
             else
             {
@@ -242,9 +252,8 @@ namespace WzComparerR2.CharaSim
                 {
                     h = sr.SkillH[0];
                 }
+                return GetSkillSummary(h, level, skill.Common, param, options);
             }
-
-            return GetSkillSummary(h, level, skill.Common, param, options);
         }
 
         public static Dictionary<string,string> GlobalVariableMapping { get; private set; }

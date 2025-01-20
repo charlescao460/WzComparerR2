@@ -15,6 +15,7 @@ namespace WzComparerR2.CharaSim
             Props = new Dictionary<GearPropType, int>();
             VariableStat = new Dictionary<GearPropType, float>();
             AbilityTimeLimited = new Dictionary<GearPropType, int>();
+            ReqSpecJobs = new List<int>();
             Options = new Potential[3];
             AdditionalOptions = new Potential[3];
             Additions = new List<Addition>();
@@ -43,9 +44,11 @@ namespace WzComparerR2.CharaSim
         public List<GearSealedInfo> Seals { get; internal set; }
 
         public List<Addition> Additions { get; private set; }
+        public bool AdditionHideDesc { get; set; }
         public Dictionary<GearPropType, int> Props { get; private set; }
         public Dictionary<GearPropType, float> VariableStat { get; private set; }
         public Dictionary<GearPropType, int> AbilityTimeLimited { get; private set; }
+        public List<int> ReqSpecJobs { get; private set; }
 
         /// <summary>
         /// 获取或设置装备的标准属性。
@@ -147,13 +150,17 @@ namespace WzComparerR2.CharaSim
 
         public void MakeTimeLimitedPropAvailable()
         {
-            if (AbilityTimeLimited.Count > 0)
+            if (AbilityTimeLimited.Count > 0 && !this.GetBooleanValue(GearPropType.abilityTimeLimited))
             {
+                int diff = 0;
                 foreach(var kv in AbilityTimeLimited)
                 {
-                    this.Props[kv.Key] = kv.Value;
+                    this.Props.TryGetValue(kv.Key, out int oldValue);
+                    this.Props[kv.Key] = oldValue + kv.Value;
+                    diff += kv.Value / Gear.GetPropTypeWeight(kv.Key);
                 }
                 this.Props[GearPropType.abilityTimeLimited] = 1;
+                this.diff += diff;
             }
         }
 
@@ -162,10 +169,26 @@ namespace WzComparerR2.CharaSim
             if (this.StandardProps != null)
             {
                 this.Props.Clear();
-                foreach (var kv in AbilityTimeLimited)
+                foreach (var kv in this.StandardProps)
                 {
                     this.Props[kv.Key] = kv.Value;
                 }
+                this.diff = 0;
+            }
+        }
+
+        public bool IsGenesisWeapon
+        {
+            get
+            {
+                // There's no better way to determine if a weapon is a Genesis weapon, the game itself also uses a hard-coded list to check it.
+                if (IsWeapon(this.type)
+                    && this.Props.TryGetValue(GearPropType.setItemID, out var setItemID)
+                    && 886 <= setItemID && setItemID <= 890)
+                {
+                    return true;
+                }
+                return false;
             }
         }
 
@@ -525,9 +548,16 @@ namespace WzComparerR2.CharaSim
                         case "addition": //附加属性信息
                             foreach (Wz_Node addiNode in subNode.Nodes)
                             {
-                                Addition addi = Addition.CreateFromNode(addiNode);
-                                if (addi != null)
-                                    gear.Additions.Add(addi);
+                                if (addiNode.Text == "hideDesc")
+                                {
+                                    gear.AdditionHideDesc = true;
+                                }
+                                else
+                                {
+                                    Addition addi = Addition.CreateFromNode(addiNode);
+                                    if (addi != null)
+                                        gear.Additions.Add(addi);
+                                }
                             }
                             gear.Additions.Sort((add1, add2) => (int)add1.Type - (int)add2.Type);
                             break;
@@ -724,6 +754,13 @@ namespace WzComparerR2.CharaSim
                                     {
                                     }
                                 }
+                            }
+                            break;
+
+                        case "reqSpecJobs":
+                            foreach (Wz_Node jobNode in subNode.Nodes)
+                            {
+                                gear.ReqSpecJobs.Add(jobNode.GetValue<int>());
                             }
                             break;
 

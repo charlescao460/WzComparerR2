@@ -1,32 +1,33 @@
-﻿using System; 
-using System.Collections.Generic; 
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Drawing;
 using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Linq;
-using System.IO;
-using System.Xml;
-using Timer = System.Timers.Timer;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Xml;
+using static Microsoft.Xna.Framework.MathHelper;
+using Timer = System.Timers.Timer;
+using DevComponents.AdvTree;
 using DevComponents.DotNetBar;
 using DevComponents.DotNetBar.Controls;
-using DevComponents.AdvTree;
-using WzComparerR2.WzLib;
-using WzComparerR2.Common;
-using WzComparerR2.CharaSimControl;
-using WzComparerR2.PluginBase;
-using WzComparerR2.CharaSim;
-using WzComparerR2.Comparer;
-using WzComparerR2.Controls;
-using WzComparerR2.Rendering;
-using WzComparerR2.Config;
+
 using WzComparerR2.Animation;
-using static Microsoft.Xna.Framework.MathHelper;
+using WzComparerR2.CharaSim;
+using WzComparerR2.CharaSimControl;
+using WzComparerR2.Common;
+using WzComparerR2.Comparer;
+using WzComparerR2.Config;
+using WzComparerR2.Controls;
+using WzComparerR2.Encoders;
+using WzComparerR2.PluginBase;
+using WzComparerR2.WzLib;
 
 namespace WzComparerR2
 {
@@ -87,7 +88,7 @@ namespace WzComparerR2
             charaSimCtrl.Character = new Character();
             charaSimCtrl.Character.Name = "Test";
 
-            string[] images = new string[] { "dir", "mp3", "num", "png", "str", "uol", "vector", "img", "rawdata" };
+            string[] images = new string[] { "dir", "mp3", "num", "png", "str", "uol", "vector", "img", "rawdata", "convex", "video" };
             foreach (string img in images)
             {
                 imageList1.Images.Add(img, (Image)Properties.Resources.ResourceManager.GetObject(img));
@@ -117,7 +118,7 @@ namespace WzComparerR2
         /// </summary>
         internal void PluginOnLoad()
         {
-            ConfigManager.RegisterAllSection();
+            ConfigManager.RegisterAllSection(this.GetType().Assembly);
             var conf = ImageHandlerConfig.Default;
             //刷新最近打开文件列表
             refreshRecentDocItems();
@@ -510,6 +511,9 @@ namespace WzComparerR2
         {
             FrmGifSetting frm = new FrmGifSetting();
             frm.Load(ImageHandlerConfig.Default);
+            frm.FFmpegBinPathHint = FFmpegEncoder.DefaultExecutionFileName;
+            frm.FFmpegArgumentHint = FFmpegEncoder.DefaultArgumentFormat;
+            frm.FFmpegDefaultExtensionHint = FFmpegEncoder.DefaultOutputFileExtension;
             if (frm.ShowDialog() == DialogResult.OK)
             {
                 ConfigManager.Reload();
@@ -602,12 +606,13 @@ namespace WzComparerR2
         private void OnSaveGifFile(AnimationItem aniItem, bool options)
         {
             var config = ImageHandlerConfig.Default;
-            var encParams = AnimateEncoderFactory.GetEncoderParams(config.GifEncoder.Value);
+            using var encoder = AnimateEncoderFactory.CreateEncoder(config);
+            var cap = encoder.Compatibility;
 
             string aniName = this.cmbItemAniNames.SelectedItem as string;
             string aniFileName = pictureBoxEx1.PictureName
                     + (string.IsNullOrEmpty(aniName) ? "" : ("." + aniName))
-                    + encParams.FileExtension;
+                    + cap.DefaultExtension;
 
             if (config.AutoSaveEnabled)
             {
@@ -624,8 +629,8 @@ namespace WzComparerR2
             else
             {
                 var dlg = new SaveFileDialog();
-
-                dlg.Filter = string.Format("{0}(*{1})|*{1}|全部文件(*.*)|*.*", encParams.FileDescription, encParams.FileExtension);
+                string extensionFilter = string.Join(";", cap.SupportedExtensions.Select(ext => $"*{ext}"));
+                dlg.Filter = string.Format("{0} Supported Files ({1})|{1}|All files (*.*)|*.*", encoder.Name, extensionFilter);
                 dlg.FileName = aniFileName;
 
                 if (dlg.ShowDialog() != DialogResult.OK)
@@ -636,7 +641,7 @@ namespace WzComparerR2
             }
 
             var clonedAniItem = (AnimationItem)aniItem.Clone();
-            if (this.pictureBoxEx1.SaveAsGif(clonedAniItem, aniFileName, config, options))
+            if (this.pictureBoxEx1.SaveAsGif(clonedAniItem, aniFileName, config, encoder, options))
             {
                 labelItemStatus.Text = "图片保存于" + aniFileName;
             }
@@ -649,7 +654,7 @@ namespace WzComparerR2
             using (OpenFileDialog dlg = new OpenFileDialog())
             {
                 dlg.Title = "请选择冒险岛wz文件...";
-                dlg.Filter = "base.wz|*.wz";
+                dlg.Filter = "MapleStory Data File(Base.wz, *.wz, *.ms)|*.wz;*.ms";
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
                     openWz(dlg.FileName);
@@ -676,9 +681,24 @@ namespace WzComparerR2
             advTree1.BeginUpdate();
             try
             {
-                if (wz.IsKMST1125WzFormat(wzFilePath))
+                if (string.Equals(Path.GetExtension(wzFilePath), ".ms", StringComparison.OrdinalIgnoreCase))
+                {
+                    wz.LoadMsFile(wzFilePath);
+                }
+                else if (wz.IsKMST1125WzFormat(wzFilePath))
                 {
                     wz.LoadKMST1125DataWz(wzFilePath);
+                    if (string.Equals(Path.GetFileName(wzFilePath), "Base.wz", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string packsDir = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(wzFilePath)), "Packs");
+                        if (Directory.Exists(packsDir))
+                        {
+                            foreach (var msFile in Directory.GetFiles(packsDir, "*.ms"))
+                            {
+                                wz.LoadMsFile(msFile);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -1041,58 +1061,58 @@ namespace WzComparerR2
 
         private string getValueString(object value)
         {
-            Wz_Png png;
-            Wz_Sound sound;
-            Wz_Vector vector;
-            Wz_Uol uol;
-            Wz_Image img;
-            Wz_RawData rawData;
+            switch (value)
+            {
+                case Wz_Png png:
+                    return $"png {png.Width}*{png.Height} ({png.Form})";
 
-            if ((png = value as Wz_Png) != null)
-            {
-                return "png " + png.Width + "*" + png.Height + " (" + png.Form + ")";
-            }
-            else if ((vector = value as Wz_Vector) != null)
-            {
-                return "(" + vector.X + ", " + vector.Y + ")";
-            }
-            else if ((uol = value as Wz_Uol) != null)
-            {
-                return uol.Uol;
-            }
-            else if ((sound = value as Wz_Sound) != null)
-            {
-                return "sound " + sound.Ms + "ms";
-            }
-            else if ((img = value as Wz_Image) != null)
-            {
-                return "<" + img.Node.Nodes.Count + ">";
-            }
-            else if ((rawData = value as Wz_RawData) != null)
-            {
-                return "rawdata " + rawData.Length;
-            }
-            else
-            {
-                String cellVal = Convert.ToString(value);
-                if (cellVal != null && cellVal.Length > 50)
-                {
-                    cellVal = cellVal.Substring(0, 50);
-                }
-                return cellVal;
+                case Wz_Vector vector:
+                    return $"({vector.X}, {vector.Y})";
+
+                case Wz_Uol uol:
+                    return uol.Uol;
+
+                case Wz_Sound sound:
+                    return $"sound {sound.Ms}ms";
+
+                case Wz_Image img:
+                    return $"<{img.Node.Nodes.Count}>";
+
+                case Wz_RawData rawData:
+                    return $"rawdata {rawData.Length}";
+
+                case Wz_Convex convex:
+                    return $"convex [{convex.Points.Length}]";
+
+                case Wz_Video video:
+                    return $"video {video.Length}";
+
+                default:
+                    string cellVal = Convert.ToString(value);
+                    if (cellVal != null && cellVal.Length > 50)
+                    {
+                        cellVal = cellVal.Substring(0, 50);
+                    }
+                    return cellVal;
             }
         }
 
         private string getValueImageKey(object value)
         {
-            if (value is Wz_Png) return "png";
-            else if (value is String) return "str";
-            else if (value is Wz_Vector) return "vector";
-            else if (value is Wz_Uol) return "uol";
-            else if (value is Wz_Sound sound) return sound.SoundType == Wz_SoundType.Binary ? "rawdata" : "mp3";
-            else if (value is Wz_Image) return "img";
-            else if (value is Wz_RawData) return "rawdata";
-            else return null;
+            return value switch
+            {
+                string => "str",
+                short or int or long or float or double=> "num",
+                Wz_Png => "png",
+                Wz_Vector => "vector",
+                Wz_Uol => "uol",
+                Wz_Sound sound => sound.SoundType == Wz_SoundType.Binary ? "rawdata" : "mp3",
+                Wz_Image => "img",
+                Wz_RawData => "rawdata",
+                Wz_Convex => "convex",
+                Wz_Video => "video",
+                _ => null
+            };
         }
 
         private void advTree3_AfterNodeSelect(object sender, AdvTreeNodeEventArgs e)
@@ -1113,87 +1133,98 @@ namespace WzComparerR2
             if (selectedNode == null)
                 return;
 
-            Wz_Png png;
-            Wz_Sound sound;
-            Wz_Vector vector;
-            Wz_Uol uol;
-            Wz_RawData rawData;
+            switch (selectedNode.Value)
+            {
+                case Wz_Png png:
+                    pictureBoxEx1.PictureName = GetSelectedNodeImageName();
+                    pictureBoxEx1.ShowImage(png);
+                    this.cmbItemAniNames.Items.Clear();
+                    advTree3.PathSeparator = ".";
+                    textBoxX1.Text = "dataLength: " + png.DataLength + " bytes\r\n" +
+                        "offset: " + png.Offset + "\r\n" +
+                        "size: " + png.Width + "*" + png.Height + "\r\n" +
+                        "png format: " + png.Form;
+                    break;
 
-            if ((png = selectedNode.Value as Wz_Png) != null)
-            {
-                pictureBoxEx1.PictureName = GetSelectedNodeImageName();
-                pictureBoxEx1.ShowImage(png);
-                this.cmbItemAniNames.Items.Clear();
-                advTree3.PathSeparator = ".";
-                textBoxX1.Text = "dataLength: " + png.DataLength + " bytes\r\n" +
-                    "offset: " + png.Offset + "\r\n" +
-                    "size: " + png.Width + "*" + png.Height + "\r\n" +
-                    "png format: " + png.Form;
-            }
-            else if ((vector = selectedNode.Value as Wz_Vector) != null)
-            {
-                textBoxX1.Text = "x: " + vector.X + " px\r\n" +
-                    "y: " + vector.Y + " px";
-            }
-            else if ((uol = selectedNode.Value as Wz_Uol) != null)
-            {
-                textBoxX1.Text = "uolPath: " + uol.Uol;
-            }
-            else if ((sound = selectedNode.Value as Wz_Sound) != null)
-            {
-                preLoadSound(sound, selectedNode.Text);
-                textBoxX1.Text = "dataLength: " + sound.DataLength + " bytes\r\n" +
-                    "offset: " + sound.Offset + "\r\n" +
-                    "time: " + sound.Ms + " ms\r\n" +
-                    "headerLength: " + (sound.Header == null ? 0 : sound.Header.Length) + " bytes\r\n" +
-                    "freq: " + sound.Frequency + " Hz\r\n" +
-                    "type: " + sound.SoundType.ToString();
-            }
-            else if (selectedNode.Value is Wz_Image)
-            {
-                //do nothing;
-            }
-            else if ((rawData = selectedNode.Value as Wz_RawData) != null)
-            {
-                textBoxX1.Text = "dataLength: " + rawData.Length + " bytes\r\n" +
-                    "offset: " + rawData.Offset;
-            }
-            else
-            {
-                string valueStr = Convert.ToString(selectedNode.Value);
-                if (valueStr != null && valueStr.Contains("\n") && !valueStr.Contains("\r\n"))
-                {
-                    valueStr = valueStr.Replace("\n", "\r\n");
-                }
-                textBoxX1.Text = Convert.ToString(valueStr);
+                case Wz_Vector vector:
+                    textBoxX1.Text = "x: " + vector.X + " px\r\n" +
+                        "y: " + vector.Y + " px";
+                    break;
 
-                switch (selectedNode.Text)
-                {
-                    case "source":
-                    case "_inlink":
-                    case "_outlink":
-                        {
-                            var parentNode = selectedNode.ParentNode;
-                            if (parentNode != null && parentNode.Value is Wz_Png)
+                case Wz_Convex convex:
+                    var sb = new StringBuilder();
+                    for (int i = 0; i < convex.Points.Length; i++)
+                    {
+                        if (i > 0) sb.AppendLine();
+                        sb.AppendFormat("({0}, {1})", convex.Points[i].X, convex.Points[i].Y);
+                    }
+                    textBoxX1.Text = sb.ToString();
+                    break;
+
+                case Wz_Uol uol:
+                    textBoxX1.Text = "uolPath: " + uol.Uol;
+                    break;
+
+                case Wz_Sound sound:
+                    preLoadSound(sound, selectedNode.Text);
+                    textBoxX1.Text = "dataLength: " + sound.DataLength + " bytes\r\n" +
+                        "offset: " + sound.Offset + "\r\n" +
+                        "duration: " + sound.Ms + " ms\r\n" +
+                        "channels: " + sound.Channels + "\r\n" +
+                        "freq: " + sound.Frequency + " Hz\r\n" +
+                        "type: " + sound.SoundType.ToString();
+                    break;
+
+                case Wz_Image:
+                    //do nothing;
+                    break;
+
+                case Wz_RawData rawData:
+                    textBoxX1.Text = "dataLength: " + rawData.Length + " bytes\r\n" +
+                        "offset: " + rawData.Offset;
+                    break;
+
+                case Wz_Video video:
+                    textBoxX1.Text = "dataLength: " + video.Length + " bytes\r\n" +
+                        "offset: " + video.Offset;
+                    break;
+
+                default:
+                    string valueStr = Convert.ToString(selectedNode.Value);
+                    if (valueStr != null && valueStr.Contains("\n") && !valueStr.Contains("\r\n"))
+                    {
+                        valueStr = valueStr.Replace("\n", "\r\n");
+                    }
+                    textBoxX1.Text = Convert.ToString(valueStr);
+
+                    switch (selectedNode.Text)
+                    {
+                        case "source":
+                        case "_inlink":
+                        case "_outlink":
                             {
-                                var linkNode = parentNode.GetLinkedSourceNode(PluginManager.FindWz);
-                                png = linkNode.GetValueEx<Wz_Png>(null);
-
-                                if (png != null)
+                                var parentNode = selectedNode.ParentNode;
+                                if (parentNode != null && parentNode.Value is Wz_Png)
                                 {
-                                    pictureBoxEx1.PictureName = GetSelectedNodeImageName();
-                                    pictureBoxEx1.ShowImage(png);
-                                    this.cmbItemAniNames.Items.Clear();
-                                    advTree3.PathSeparator = ".";
-                                    textBoxX1.AppendText("\r\n\r\ndataLength: " + png.DataLength + " bytes\r\n" +
+                                    var linkNode = parentNode.GetLinkedSourceNode(PluginManager.FindWz);
+                                    var png = linkNode.GetValueEx<Wz_Png>(null);
+
+                                    if (png != null)
+                                    {
+                                        pictureBoxEx1.PictureName = GetSelectedNodeImageName();
+                                        pictureBoxEx1.ShowImage(png);
+                                        this.cmbItemAniNames.Items.Clear();
+                                        advTree3.PathSeparator = ".";
+                                        textBoxX1.AppendText("\r\n\r\ndataLength: " + png.DataLength + " bytes\r\n" +
                                         "offset: " + png.Offset + "\r\n" +
                                         "size: " + png.Width + "*" + png.Height + "\r\n" +
-                                        "png format: " + png.Form);
+                                            "png format: " + png.Form);
+                                    }
                                 }
                             }
-                        }
-                        break;
-                }
+                            break;
+                    }
+                    break;
             }
         }
 
@@ -1260,7 +1291,7 @@ namespace WzComparerR2
                 {
                     foreach (var wzf in wzs.wz_files)
                     {
-                        if (wzf.Type == wzType)
+                        if (wzf.Type == wzType && wzf.OwnerWzFile == null)
                         {
                             allWzFile.Add(wzf.Node);
                         }
@@ -1659,28 +1690,16 @@ namespace WzComparerR2
                 try
                 {
                     fs = new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write);
-                    FileStream fsWz = img.WzFile.FileStream;
-                    fsWz.Seek(img.Offset, SeekOrigin.Begin);
-                    byte[] buffer = new byte[2048];
-                    int count, size = img.Size;
-                    while (size > 0 &&
-                        (count = fsWz.Read(buffer, 0, Math.Min(size, buffer.Length))) > 0)
-                    {
-                        fs.Write(buffer, 0, count);
-                        size -= count;
-                    }
+                    var s = img.OpenRead();
+                    s.Position = 0;
+                    s.CopyTo(fs);
+                    fs.Close();
                     labelItemStatus.Text = img.Name + "导出完毕。";
                 }
                 catch (Exception ex)
                 {
+                    fs?.Close();
                     MessageBoxEx.Show(ex.ToString(), "错了");
-                }
-                finally
-                {
-                    if (fs != null)
-                    {
-                        fs.Close();
-                    }
                 }
             }
         }
@@ -1893,7 +1912,7 @@ namespace WzComparerR2
             QueryPerformance.Start();
             if (!this.stringLinker.HasValues)
             {
-                if (!this.stringLinker.Load(findStringWz()))
+                if (!this.TryLoadStringWz())
                 {
                     MessageBoxEx.Show("没有初始化string链接，请手动指定一个String.wz。", "喵~~");
                     return;
@@ -1957,19 +1976,19 @@ namespace WzComparerR2
             }            
         }
 
-        private Wz_File findStringWz()
+        private bool TryLoadStringWz()
         {
             foreach (Wz_Structure wz in openedWz)
             {
                 foreach (Wz_File file in wz.wz_files)
                 {
-                    if (file.Type == Wz_Type.String)
+                    if (file.Type == Wz_Type.String && this.stringLinker.Load(file))
                     {
-                        return file;
+                        return true;
                     }
                 }
             }
-            return null;
+            return false;
         }
 
         private IEnumerable<KeyValuePair<int, StringResult>> searchStringLinker(IEnumerable<Dictionary<int, StringResult>> dicts, string key, bool exact, bool isRegex)
@@ -2066,6 +2085,12 @@ namespace WzComparerR2
                 }
             }
             FrmPatcher patcher = new FrmPatcher();
+            var config = WcR2Config.Default;
+            var defaultEnc = config?.WzEncoding?.Value ?? 0;
+            if (defaultEnc != 0)
+            {
+                patcher.PatcherNoticeEncoding = Encoding.GetEncoding(defaultEnc);
+            }
             patcher.Owner = this;
             patcher.Show();
         }
@@ -2085,7 +2110,7 @@ namespace WzComparerR2
             switch (sound.SoundType)
             {
                 case Wz_SoundType.Mp3: soundName += ".mp3"; break;
-                case Wz_SoundType.WavRaw: soundName += ".wav"; break;
+                case Wz_SoundType.Pcm: soundName += ".wav"; break;
             }
             soundPlayer.PlayingSoundName = soundName;
             labelItemSoundTitle.Tooltip = soundName;
@@ -2272,16 +2297,16 @@ namespace WzComparerR2
                     }
                 }
             }
-            else if (item is Wz_Sound wzSound)
+            else if (item is IMapleStoryBlob blob)
             {
                 SaveFileDialog dlg = new SaveFileDialog();
                 dlg.FileName = advTree3.SelectedNode.Text;
-                if (!dlg.FileName.Contains("."))
+                if (!dlg.FileName.Contains(".") && blob is Wz_Sound wzSound)
                 {
                     switch (wzSound.SoundType)
                     {
                         case Wz_SoundType.Mp3: dlg.FileName += ".mp3"; break;
-                        case Wz_SoundType.WavRaw: dlg.FileName += ".pcm"; break;
+                        case Wz_SoundType.Pcm: dlg.FileName += ".pcm"; break;
                     }
                 }
                 dlg.Filter = "*.*|*.*";
@@ -2289,60 +2314,12 @@ namespace WzComparerR2
                 {
                     try
                     {
+                        byte[] data = new byte[blob.Length];
+                        blob.CopyTo(data, 0);
                         using (var f = File.Create(dlg.FileName))
                         {
-                            wzSound.WzFile.FileStream.Seek(wzSound.Offset, SeekOrigin.Begin);
-                            byte[] buffer = new byte[4096];
-                            int bytes = wzSound.DataLength;
-                            while (bytes > 0)
-                            {
-                                int count = wzSound.WzFile.FileStream.Read(buffer, 0, Math.Min(buffer.Length, bytes));
-                                if (count > 0)
-                                {
-                                    f.Write(buffer, 0, count);
-                                    bytes -= count;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                        this.labelItemStatus.Text = "保存成功。";
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBoxEx.Show("文件保存失败。\r\n" + ex.ToString(), "提示");
-                    }
-                }
-            }
-            else if (item is Wz_RawData rawData)
-            {
-                SaveFileDialog dlg = new SaveFileDialog();
-                dlg.FileName = advTree3.SelectedNode.Text;
-                dlg.Filter = "*.*|*.*";
-                if (dlg.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        using (var f = File.Create(dlg.FileName))
-                        {
-                            rawData.WzFile.FileStream.Seek(rawData.Offset, SeekOrigin.Begin);
-                            byte[] buffer = new byte[4096];
-                            int bytes = rawData.Length;
-                            while (bytes > 0)
-                            {
-                                int count = rawData.WzFile.FileStream.Read(buffer, 0, Math.Min(buffer.Length, bytes));
-                                if (count > 0)
-                                {
-                                    f.Write(buffer, 0, count);
-                                    bytes -= count;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
+                            f.Write(data, 0, data.Length);
+                            f.Flush();
                         }
                         this.labelItemStatus.Text = "保存成功。";
                     }
@@ -2475,7 +2452,7 @@ namespace WzComparerR2
             tsmi2HandleUol.Visible = false;
             if (node != null)
             {
-                if (node.Value is Wz_Sound || node.Value is Wz_Png || node.Value is string || node.Value is Wz_RawData)
+                if (node.Value is Wz_Sound || node.Value is Wz_Png || node.Value is string || node.Value is Wz_RawData || node.Value is Wz_Video)
                 {
                     tsmi2SaveAs.Visible = true;
                     tsmi2SaveAs.Enabled = true;
@@ -2544,7 +2521,7 @@ namespace WzComparerR2
 
             if (!this.stringLinker.HasValues)
             {
-                this.stringLinker.Load(findStringWz());
+                this.TryLoadStringWz();
             }
 
             object obj = null;
@@ -3032,7 +3009,7 @@ namespace WzComparerR2
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 if (!this.stringLinker.HasValues)
-                    this.stringLinker.Load(findStringWz());
+                    this.TryLoadStringWz();
 
                 DBConnection conn = new DBConnection(this.stringLinker);
                 DataSet ds = conn.GenerateSkillTable();
@@ -3055,7 +3032,7 @@ namespace WzComparerR2
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 if (!this.stringLinker.HasValues)
-                    this.stringLinker.Load(findStringWz());
+                    this.TryLoadStringWz();
 
                 DBConnection conn = new DBConnection(this.stringLinker);
                 conn.ExportSkillOption(dlg.SelectedPath);

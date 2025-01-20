@@ -1,29 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
-using NLua;
 using System.IO;
-using System.Diagnostics;
-using System.Threading;
-using DevComponents.DotNetBar;
 using System.Reflection;
-using ICSharpCode.TextEditor.Document;
-using WzComparerR2.PluginBase;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Windows.Forms;
+using WzComparerR2.Config;
+using WzComparerR2.LuaConsole.Config;
+using WzComparerR2.PluginBase;
+using WzComparerR2.WzLib;
+using DevComponents.DotNetBar;
+using ICSharpCode.TextEditor.Document;
+using NLua;
 
 namespace WzComparerR2.LuaConsole
 {
     public partial class FrmConsole : DevComponents.DotNetBar.Office2007Form
     {
+        static bool globalInit = false;
+
         //NoOptimization防止Assembly.GetCallingAssembly因尾调用优化出错
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
         public FrmConsole()
         {
             InitializeComponent();
-            HighlightingManager.Manager.AddSyntaxModeFileProvider(new AppSyntaxModeProvider());
+            this.refreshRecentDocItems();
+            if (!globalInit)
+            {
+                HighlightingManager.Manager.AddSyntaxModeFileProvider(new AppSyntaxModeProvider());
+                globalInit = true;
+            }
+           
             this.env = new LuaEnvironment(this);
             this.InitLuaEnv();
         }
@@ -74,6 +82,7 @@ end
                 "Lua\\?\\init.lua" };
             string packageDir = string.Join(";", Array.ConvertAll(packageFile, s => Path.Combine(baseDir, s)));
             lua.DoString(string.Format("package.path = [[{0}]]..';'..package.path", packageDir));
+            lua.RegisterLuaDelegateType(typeof(WzComparerR2.GlobalFindNodeFunction), typeof(LuaGlobalFindNodeFunctionHandler)); 
         }
 
         public class LuaEnvironment
@@ -269,11 +278,7 @@ env:WriteLine(string format, object[] args)");
             dlg.Filter = "*.lua|*.lua|*.*|*.*";
             if (dlg.ShowDialog() == DialogResult.OK)
             {
-                FrmLuaEditor frm = new FrmLuaEditor();
-                frm.MdiParent = this;
-                frm.WindowState = FormWindowState.Maximized;
-                frm.LoadFile(dlg.FileName);
-                frm.Show();
+                OpenFile(dlg.FileName);
             }
         }
 
@@ -300,6 +305,73 @@ env:WriteLine(string format, object[] args)");
 
             editor.SaveFile(editor.FileName);
             textBoxX2.AppendText($"====已经保存{editor.FileName}====");
+        }
+
+        private void refreshRecentDocItems()
+        {
+            this.menuRecent.SubItems.Clear();
+            foreach (var doc in LuaConsoleConfig.Default.RecentDocuments)
+            {
+                ButtonItem item = new ButtonItem() { Text = "&" + (this.menuRecent.SubItems.Count + 1) + ". " + Path.GetFileName(doc), Tooltip = doc, Tag = doc };
+                item.Click += RecentDocumentItem_Click;
+                this.menuRecent.SubItems.Add(item);
+            }
+        }
+
+        private void RecentDocumentItem_Click(object sender, EventArgs e)
+        {
+            if (sender is ButtonItem item && item.Tag is string fileName)
+            {
+                OpenFile(fileName);
+            }
+        }
+
+        private void menuExit_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void OpenFile(string fileName)
+        {
+            FrmLuaEditor frm = new FrmLuaEditor();
+            try
+            {
+                frm.LoadFile(fileName);
+                frm.MdiParent = this;
+                frm.WindowState = FormWindowState.Maximized;
+                frm.Show();
+            }
+            catch(Exception ex)
+            {
+                frm.Dispose();
+                MessageBoxEx.Show(this, ex.ToString(), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            ConfigManager.Reload();
+            var config = LuaConsoleConfig.Default;
+            config.RecentDocuments.Remove(fileName);
+            config.RecentDocuments.Insert(0, fileName);
+            for (int i = config.RecentDocuments.Count - 1; i >= 10; i--)
+            {
+                config.RecentDocuments.RemoveAt(i);
+            }
+            ConfigManager.Save();
+            refreshRecentDocItems();
+        }
+
+        class LuaGlobalFindNodeFunctionHandler : NLua.Method.LuaDelegate
+        {
+            Wz_Node CallFunction(string wzPath)
+            {
+                object[] args = { wzPath };
+                object[] inArgs = { wzPath };
+                int[] outArgs = { };
+
+                object ret = CallFunction(args, inArgs, outArgs);
+
+                return (Wz_Node)ret;
+            }
         }
     }
 }

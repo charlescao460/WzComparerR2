@@ -63,7 +63,9 @@ namespace WzComparerR2.CharaSimControl
             int[] picH = new int[4];
             Bitmap left = RenderBase(out picH[0]);
             Bitmap add = RenderAddition(out picH[1]);
-            Bitmap set = RenderSetItem(out picH[2]);
+            Bitmap genesis = RenderGenesisSkills(out int genesisHeight);
+            Bitmap set = RenderSetItem(out int setHeight);
+            picH[2] = genesisHeight + setHeight;
             Bitmap levelOrSealed = null;
             if (this.ShowLevelOrSealed)
             {
@@ -73,6 +75,7 @@ namespace WzComparerR2.CharaSimControl
             int width = 261;
             if (add != null) width += add.Width;
             if (set != null) width += set.Width;
+            else if (genesis != null) width += genesis.Width; // ideally genesisWeapons always have setitem
             if (levelOrSealed != null) width += levelOrSealed.Width;
             int height = 0;
             for (int i = 0; i < picH.Length; i++)
@@ -102,32 +105,49 @@ namespace WzComparerR2.CharaSimControl
             }
 
             //绘制addition
-            if (add != null)
-            {
-                //绘制背景
+                if (add != null)
+                {
+                    //绘制背景
                 g.DrawImage(res["t"].Image, width, 0);
-                FillRect(g, res["line"], width, 13, tooltip.Height - 13);
-                g.DrawImage(res["b"].Image, width, tooltip.Height - 13);
+                    FillRect(g, res["line"], width, 13, tooltip.Height - 13);
+                    g.DrawImage(res["b"].Image, width, tooltip.Height - 13);
 
-                //复制原图
+                    //复制原图
                 g.DrawImage(add, width, 0, new Rectangle(0, 0, add.Width, picH[1]), GraphicsUnit.Pixel);
 
                 width += add.Width;
-                add.Dispose();
-            }
+                    add.Dispose();
+                }
 
             //绘制setitem
-            if (set != null)
+            if (genesis != null || set != null)
             {
-                //绘制背景
-                //g.DrawImage(res["t"].Image, width, 0);
-                //FillRect(g, res["line"], width, 13, picH[2] - 13);
-                //g.DrawImage(res["b"].Image, width, picH[2] - 13);
+                int y = 0;
+                int partWidth = 0;
+                if (genesis != null)
+                {
+                    // draw background
+                    g.DrawImage(res["t"].Image, width, 0);
+                    FillRect(g, res["line"], width, 13, genesisHeight - 13);
+                    g.DrawImage(res["b"].Image, width, genesisHeight - 13);
+
+                    // copy text layer
+                    g.DrawImage(genesis, width, 0, new Rectangle(0, 0, genesis.Width, genesisHeight), GraphicsUnit.Pixel);
+
+                    y += genesisHeight;
+                    partWidth = Math.Max(partWidth, genesis.Width);
+                    genesis.Dispose();
+                }
 
                 //复制原图
-                g.DrawImage(set, width, 0, new Rectangle(0, 0, set.Width, picH[2]), GraphicsUnit.Pixel);
-                width += set.Width;
-                set.Dispose();
+                if (set != null)
+                {
+                    g.DrawImage(set, width, y, new Rectangle(0, 0, set.Width, setHeight), GraphicsUnit.Pixel);
+                    partWidth = Math.Max(partWidth, set.Width);
+                    set.Dispose();
+                }
+
+                width += partWidth;
             }
 
             //绘制levelOrSealed
@@ -159,10 +179,18 @@ namespace WzComparerR2.CharaSimControl
             Graphics g = Graphics.FromImage(bitmap);
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             StringFormat format = (StringFormat)StringFormat.GenericTypographic.Clone();
+            var itemPropColorTable = new Dictionary<string, Color>()
+            {
+                { "$y", GearGraphics.gearCyanColor },
+                { "$e", GearGraphics.ScrollEnhancementColor },
+            };
             int value;
 
             picH = 13;
-            DrawStar2(g, ref picH); //绘制星星
+            if (!Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
+            {
+                DrawStar2(g, ref picH); //绘制星星
+            }
 
             //绘制装备名称
             StringResult sr;
@@ -323,7 +351,7 @@ namespace WzComparerR2.CharaSimControl
 
             //绘制攻击力变化
             format.Alignment = StringAlignment.Far;
-            g.DrawString("攻击力提升", GearGraphics.ItemDetailFont, GearGraphics.GrayBrush2, 251, picH + 10, format);
+            g.DrawString("攻击力增加量", GearGraphics.ItemDetailFont, GearGraphics.GrayBrush2, 251, picH + 10, format);
             g.DrawImage(Resource.UIToolTip_img_Item_Equip_Summary_incline_0, 249 - 19, picH + 27); //暂时画个0
 
             //绘制属性需求
@@ -420,7 +448,7 @@ namespace WzComparerR2.CharaSimControl
                 bool isValidSpeed = (2 <= value && value <= 9);
                 string speedStr = string.Format("攻击速度 : {0}{1}{2}",
                     ItemStringHelper.GetAttackSpeedString(value),
-                    isValidSpeed ? $"（{10 - value}阶段）" : null,
+                    isValidSpeed ? $"（第{10 - value}阶段）" : null,
                     ShowSpeed ? $"({value})" : null
                 );
 
@@ -455,7 +483,7 @@ namespace WzComparerR2.CharaSimControl
                 //绘制属性变化
                 Gear.StandardProps.TryGetValue(type, out value); //standard value
                 var propStr = ItemStringHelper.GetGearPropDiffString(type, Gear.Props[type], value);
-                GearGraphics.DrawString(g, propStr, GearGraphics.ItemDetailFont, 13, 256, ref picH, 16);
+                GearGraphics.DrawString(g, propStr, GearGraphics.ItemDetailFont, itemPropColorTable, 13, 256, ref picH, 16);
                 hasPart2 = true;
             }
 
@@ -476,7 +504,7 @@ namespace WzComparerR2.CharaSimControl
             bool hasReduce = Gear.Props.TryGetValue(GearPropType.reduceReq, out value);
             if (hasReduce && value > 0)
             {
-                g.DrawString(ItemStringHelper.GetGearPropString(GearPropType.reduceReq, value), GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
+                g.DrawString(ItemStringHelper.GetGearPropString(GearPropType.reduceReq, value), GearGraphics.ItemDetailFont, GearGraphics.GreenBrush2, 11, picH);
                 picH += 16;
                 hasPart2 = true;
             }
@@ -487,7 +515,12 @@ namespace WzComparerR2.CharaSimControl
                 g.DrawString("无法强化", GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
                 picH += 16;
             }
-            else if (hasTuc)
+            else if (Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
+            {
+                g.DrawString("无法进行星之力强化", GearGraphics.ItemDetailFont, GearGraphics.BlockRedBrush, 11, picH);
+                picH += 16;
+            }
+            else if (hasTuc && !Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
             {
                 var colorTable = new Dictionary<string, Color>
                 {
@@ -498,11 +531,11 @@ namespace WzComparerR2.CharaSimControl
             }
 
             //星星锤子
-            if (hasTuc && Gear.Hammer > -1)
+            if (hasTuc && Gear.Hammer > -1 && !Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
             {
                 if (Gear.Hammer == 2)
                 {
-                    g.DrawString("黄金锤提炼完成", GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
+                    g.DrawString("应用黄金锤精炼", GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
                     picH += 16;
                 }
                 if (Gear.Props.TryGetValue(GearPropType.superiorEqp, out value) && value > 0) //极真
@@ -526,7 +559,7 @@ namespace WzComparerR2.CharaSimControl
                 hasPart2 = true;
             }
 
-            if (hasTuc && Gear.Hammer > -1)
+            if (hasTuc && Gear.Hammer > -1 && !Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
             {
                 g.DrawString("金锤子已提高的强化次数", GearGraphics.ItemDetailFont, GearGraphics.GoldHammerBrush, 11, picH + 2);
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
@@ -535,8 +568,13 @@ namespace WzComparerR2.CharaSimControl
                 picH += 16;
                 hasPart2 = true;
             }
+            else if (Gear.GetBooleanValue(GearPropType.blockUpgradeExtraOption))
+            {
+                g.DrawString("无法设置/重设额外属性", GearGraphics.ItemDetailFont, GearGraphics.BlockRedBrush, 11, picH);
+                picH += 16;
+            }
 
-            if (hasTuc && Gear.PlatinumHammer > -1)
+            if (hasTuc && Gear.PlatinumHammer > -1 && !Gear.GetBooleanValue(GearPropType.blockUpgradeStarforce))
             {
                 g.DrawString("白金锤强化次数：" + Gear.PlatinumHammer, GearGraphics.ItemDetailFont, Brushes.White, 11, picH);
                 picH += 16;
@@ -723,7 +761,7 @@ namespace WzComparerR2.CharaSimControl
 
             //判断是否绘制徽章
             Wz_Node medalResNode = null;
-            bool willDrawMedalTag = this.ShowMedalTag
+            bool willDrawMedalTag = this.ShowMedalTag && this.Gear.Sample.Bitmap == null
                 && this.Gear.Props.TryGetValue(GearPropType.medalTag, out value)
                 && this.TryGetMedalResource(value, out medalResNode);
 
@@ -817,7 +855,7 @@ namespace WzComparerR2.CharaSimControl
         {
             Bitmap addBitmap = null;
             picHeight = 0;
-            if (Gear.Additions.Count > 0)
+            if (Gear.Additions.Count > 0 && !Gear.AdditionHideDesc)
             {
                 addBitmap = new Bitmap(261, DefaultPicHeight);
                 Graphics g = Graphics.FromImage(addBitmap);
@@ -1017,6 +1055,35 @@ namespace WzComparerR2.CharaSimControl
             return levelOrSealed;
         }
 
+        private Bitmap RenderGenesisSkills(out int picHeight)
+        {
+            Bitmap genesisBitmap = null;
+            picHeight = 0;
+            if (Gear.IsGenesisWeapon)
+            {
+                genesisBitmap = new Bitmap(261, DefaultPicHeight);
+                Graphics g = Graphics.FromImage(genesisBitmap);
+                picHeight = 13;
+                foreach (var skillID in new[] { 80002632, 80002633 })
+                {
+                    string skillName;
+                    if (this.StringLinker?.StringSkill.TryGetValue(skillID, out var sr) ?? false && sr.Name != null)
+                    {
+                        skillName = sr.Name;
+                    }
+                    else
+                    {
+                        skillName = skillID.ToString();
+                    }
+                    g.DrawString($"可使用<{skillName}>", GearGraphics.ItemDetailFont, GearGraphics.GreenBrush2, 10, picHeight);
+                    picHeight += 16;
+                }
+                picHeight += 9;
+                g.Dispose();
+            }
+            return genesisBitmap;
+        }
+
         private void FillRect(Graphics g, TextureBrush brush, int x, int y0, int y1)
         {
             brush.ResetTransform();
@@ -1036,6 +1103,10 @@ namespace WzComparerR2.CharaSimControl
             if (Gear.Props.TryGetValue(GearPropType.tradeBlock, out value) && value != 0)
             {
                 tags.Add(ItemStringHelper.GetGearPropString(GearPropType.tradeBlock, value));
+            }
+            if (Gear.Props.TryGetValue(GearPropType.mintable, out value) && value != 0)
+            {
+                tags.Add(ItemStringHelper.GetGearPropString(GearPropType.mintable, value));
             }
             if (Gear.Props.TryGetValue(GearPropType.abilityTimeLimited, out value) && value != 0)
             {
@@ -1187,7 +1258,6 @@ namespace WzComparerR2.CharaSimControl
             //DrawReqNum(g, "0", NumberType.LookAhead, x - 5, y + 6, StringAlignment.Far);
 
             //boss伤
-
             g.DrawImage(Resource.UIToolTip_img_Item_Equip_Summary_icon_bdr, x, y);
             x += 62;
             this.Gear.Props.TryGetValue(GearPropType.bdR, out value);
@@ -1205,9 +1275,40 @@ namespace WzComparerR2.CharaSimControl
         private void DrawJobReq(Graphics g, ref int picH)
         {
             int value;
-            string extraReq = ItemStringHelper.GetExtraJobReqString(Gear.type) ??
-                (Gear.Props.TryGetValue(GearPropType.reqSpecJob, out value) ? ItemStringHelper.GetExtraJobReqString(value) : null);
-            Image jobImage = extraReq == null ? Resource.UIToolTip_img_Item_Equip_Job_normal : Resource.UIToolTip_img_Item_Equip_Job_expand;
+            string extraReq = ItemStringHelper.GetExtraJobReqString(Gear.type);
+            if (extraReq == null && Gear.Props.TryGetValue(GearPropType.reqSpecJob, out value))
+            {
+                extraReq = ItemStringHelper.GetExtraJobReqString(value);
+            }
+            if (extraReq == null && Gear.ReqSpecJobs.Count > 0)
+            {
+                // apply req order fix for CMS only
+                int[] specJobsList1 = new[] { 2, 22, 12, 32, 172 };
+                if (new HashSet<int>(specJobsList1).SetEquals(Gear.ReqSpecJobs))
+                {
+                    extraReq = ItemStringHelper.GetExtraJobReqString(specJobsList1);
+                }
+                else
+                {
+                    extraReq = ItemStringHelper.GetExtraJobReqString(Gear.ReqSpecJobs);
+                }
+            }
+
+            Image jobImage = null;
+            int extraReqWidth = 216;
+            if (extraReq == null)
+            {
+                jobImage = Resource.UIToolTip_img_Item_Equip_Job_normal;
+            }
+            else
+            {
+                // measure jobReq desc
+                // Actually we use GearGraphics.DrawPlainText to render extraReq, the meatured lines may not accurate.
+                using var extraReqFmt = new StringFormat();
+                extraReqFmt.Alignment = StringAlignment.Center;
+                g.MeasureString(extraReq, GearGraphics.ItemDetailFont, new SizeF(extraReqWidth, short.MaxValue), extraReqFmt, out _, out var lines);
+                jobImage = lines == 1 ? Resource.UIToolTip_img_Item_Equip_Job_expand : Resource.UIToolTip_img_Item_Equip_Job_expand2;
+            }
             g.DrawImage(jobImage, 12, picH);
 
             int reqJob;
@@ -1220,8 +1321,8 @@ namespace WzComparerR2.CharaSimControl
                 if (i == 0)
                 {
                     enable = reqJob <= 0;
-                    if (reqJob == 0) reqJob = 0x1f;//0001 1111
-                    if (reqJob == -1) reqJob = 0; //0000 0000
+                    if (reqJob == 0) reqJob = 0b11111;
+                    if (reqJob == -1) reqJob = 0b00000;
                 }
                 else
                 {
@@ -1242,10 +1343,10 @@ namespace WzComparerR2.CharaSimControl
             }
             if (extraReq != null)
             {
-                StringFormat format = new StringFormat();
-                format.Alignment = StringAlignment.Center;
-                g.DrawString(extraReq, GearGraphics.ItemDetailFont, GearGraphics.OrangeBrush3, 130, picH + 24, format);
-                format.Dispose();
+                // ignore yaxis.
+                int tempY = picH + 24;
+                GearGraphics.DrawPlainText(g, extraReq, GearGraphics.ItemDetailFont, GearGraphics.OrangeBrush3Color, 
+                    130 - extraReqWidth / 2, 130 + extraReqWidth / 2, ref tempY, 16, Text.TextAlignment.Center);
             }
             picH += jobImage.Height + 9;
         }

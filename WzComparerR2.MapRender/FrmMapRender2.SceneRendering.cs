@@ -537,6 +537,8 @@ namespace WzComparerR2.MapRender
                     case LifeItem.LifeType.Npc:
                         if (this.patchVisibility.NpcNameVisible)
                         {
+                            if (life.HideName) break;
+
                             string name, desc;
                             if (this.StringLinker?.StringNpc.TryGetValue(life.ID, out sr) ?? false)
                             {
@@ -569,10 +571,11 @@ namespace WzComparerR2.MapRender
                             {
                                 mesh = batcher.MeshPop();
                                 mesh.Position = new Vector2(life.X, life.Cy + 20);
+                                // temporarily ignore font name and size here.
                                 mesh.RenderObject = new TextMesh()
                                 {
                                     Align = Alignment.Center,
-                                    ForeColor = Color.Yellow,
+                                    ForeColor = life.CustomFont?.FontColor ?? Color.Yellow,
                                     BackColor = new Color(Color.Black, 0.7f),
                                     Font = renderEnv.Fonts.NpcNameFont,
                                     Padding = new Margins(2, 2, 2, 2),
@@ -725,54 +728,73 @@ namespace WzComparerR2.MapRender
                 return null;
             }
 
-            if (item is BackItem)
+            switch (item)
             {
-                var back = (BackItem)item;
-                if (back.IsFront ? patchVisibility.FrontVisible : patchVisibility.BackVisible)
-                {
-                    return GetMeshBack(back);
-                }
-            }
-            else if (item is ObjItem obj)
-            {
-                if (patchVisibility.ObjVisible && !obj.Light)
-                {
-                    return GetMeshObj(obj);
-                }
-            }
-            else if (item is TileItem)
-            {
-                if (patchVisibility.TileVisible)
-                {
-                    return GetMeshTile((TileItem)item);
-                }
-            }
-            else if (item is LifeItem)
-            {
-                var life = (LifeItem)item;
-                if ((life.Type == LifeItem.LifeType.Mob && patchVisibility.MobVisible)
-                    || (life.Type == LifeItem.LifeType.Npc && patchVisibility.NpcVisible))
-                {
-                    return GetMeshLife(life);
-                }
-            }
-            else if (item is PortalItem)
-            {
-                if (patchVisibility.PortalVisible)
-                {
-                    return GetMeshPortal((PortalItem)item);
-                }
-            }
-            else if (item is ReactorItem)
-            {
-                if (patchVisibility.ReactorVisible)
-                {
-                    return GetMeshReactor((ReactorItem)item);
-                }
-            }
-            else if (item is ParticleItem)
-            {
-                return GetMeshParticle((ParticleItem)item);
+                case BackItem back:
+                    if (back.Quest.Exists(quest => !patchVisibility.IsQuestVisible(quest.ID, quest.State)))
+                    {
+                        return null;
+                    }
+                    if (back.IsFront ? patchVisibility.FrontVisible : patchVisibility.BackVisible)
+                    {
+                        return GetMeshBack(back);
+                    }
+                    break;
+
+                case ObjItem obj:
+                    if (patchVisibility.ObjVisible && !obj.Light)
+                    {
+                        if (obj.Quest.Exists(quest => !patchVisibility.IsQuestVisible(quest.ID, quest.State)))
+                        {
+                            return null;
+                        }
+                        if (obj.Questex.Exists(questex => !patchVisibility.IsQuestVisible(questex.ID, questex.Key, questex.State)))
+                        {
+                            return null;
+                        }
+                        return GetMeshObj(obj);
+                    }
+                    break;
+
+                case TileItem tile:
+                    if (patchVisibility.TileVisible)
+                    {
+                        return GetMeshTile(tile);
+                    }
+                    break;
+
+                case LifeItem life:
+                    if ((life.Type == LifeItem.LifeType.Mob && patchVisibility.MobVisible)
+                        || (life.Type == LifeItem.LifeType.Npc && patchVisibility.NpcVisible))
+                    {
+                        return GetMeshLife(life);
+                    }
+                    break;
+
+                case PortalItem portal:
+                    if (patchVisibility.PortalVisible)
+                    {
+                        return GetMeshPortal(portal);
+                    }
+                    break;
+
+                case ReactorItem reactor:
+                    if (patchVisibility.ReactorVisible)
+                    {
+                        return GetMeshReactor(reactor);
+                    }
+                    break;
+
+                case ParticleItem particle:
+                    if (particle.Quest.Exists(quest => !patchVisibility.IsQuestVisible(quest.ID, quest.State)))
+                    {
+                        return null;
+                    }
+                    if (patchVisibility.EffectVisible)
+                    {
+                        return GetMeshParticle((ParticleItem)item);
+                    }
+                    break;
             }
             return null;
         }
@@ -897,6 +919,31 @@ namespace WzComparerR2.MapRender
             mesh.FlipX = obj.Flip;
             mesh.Z0 = obj.Z;
             mesh.Z1 = obj.Index;
+
+            if (obj.MoveW != 0 || obj.MoveH != 0)
+            {
+                double movingX = 0;
+                double movingY = 0;
+                double time = obj.View.Time / Math.PI / 1000 * 4 / obj.MoveP * 5000;
+                switch (obj.MoveType)
+                {
+                    case 0: // none
+                        break;
+                    case 1:
+                    case 2: // line
+                        movingX = obj.MoveW * Math.Cos(time);
+                        movingY = obj.MoveH * Math.Cos(time);
+                        break;
+                    case 3: // circle
+                        movingX = obj.MoveW * Math.Cos(time);
+                        movingY = obj.MoveH * Math.Sin(time);
+                        break;
+                    default:
+                        break;
+                }
+                mesh.Position += new Vector2((float)movingX, (float)movingY);
+            }
+
             return mesh;
         }
 

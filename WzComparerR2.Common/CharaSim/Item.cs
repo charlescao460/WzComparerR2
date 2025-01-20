@@ -10,14 +10,16 @@ namespace WzComparerR2.CharaSim
     {
         public Item()
         {
-            this.Props = new Dictionary<ItemPropType, int>();
-            this.Specs = new Dictionary<ItemSpecType, int>();
+            this.Props = new Dictionary<ItemPropType, long>();
+            this.Specs = new Dictionary<ItemSpecType, long>();
+            this.Recipes = new List<int>();
         }
 
         public int Level { get; set; }
 
-        public Dictionary<ItemPropType, int> Props { get; private set; }
-        public Dictionary<ItemSpecType, int> Specs { get; private set; }
+        public Dictionary<ItemPropType, long> Props { get; private set; }
+        public Dictionary<ItemSpecType, long> Specs { get; private set; }
+        public List<int> Recipes { get; private set; }
 
         public bool Cash
         {
@@ -31,8 +33,7 @@ namespace WzComparerR2.CharaSim
 
         public bool GetBooleanValue(ItemPropType type)
         {
-            int value;
-            return this.Props.TryGetValue(type, out value) && value != 0;
+            return this.Props.TryGetValue(type, out long value) && value != 0;
         }
 
         public static Item CreateFromNode(Wz_Node node, GlobalFindNodeFunction findNode)
@@ -46,6 +47,15 @@ namespace WzComparerR2.CharaSim
                 return null;
             }
             item.ItemID = value;
+
+            // in msn the node could be UOL.
+            if (node.Value is Wz_Uol)
+            {
+                if ((node = node.ResolveUol()) == null)
+                {
+                    return item;
+                }
+            }
 
             Wz_Node infoNode = node.FindNodeByPath("info");
             if (infoNode != null)
@@ -85,7 +95,7 @@ namespace WzComparerR2.CharaSim
                             {
                                 try
                                 {
-                                    item.Props.Add(type, Convert.ToInt32(subNode.Value));
+                                    item.Props.Add(type, Convert.ToInt64(subNode.Value));
                                 }
                                 finally
                                 {
@@ -101,12 +111,25 @@ namespace WzComparerR2.CharaSim
             {
                 foreach (Wz_Node subNode in specNode.Nodes)
                 {
-                    ItemSpecType type;
-                    if (Enum.TryParse(subNode.Text, out type))
+                    if (subNode.Text == "recipe")
+                    {
+                        if (subNode.Value == null && subNode.Nodes.Count > 0)
+                        {
+                            foreach (var recipeNode in subNode.Nodes)
+                            {
+                                item.Recipes.Add(recipeNode.GetValue<int>());
+                            }
+                        }
+                        else
+                        {
+                            item.Recipes.Add(subNode.GetValue<int>());
+                        }
+                    }
+                    else if(Enum.TryParse(subNode.Text, out ItemSpecType type))
                     {
                         try
                         {
-                            item.Specs.Add(type, Convert.ToInt32(subNode.Value));
+                            item.Specs.Add(type, Convert.ToInt64(subNode.Value));
                         }
                         finally
                         {

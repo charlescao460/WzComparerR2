@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Drawing;
 using System.Drawing.Imaging;
-using ImageManipulation;
-
+using System.IO;
+using WzComparerR2.Encoders;
 using WzComparerR2.WzLib;
 
 namespace WzComparerR2.Common
@@ -234,7 +231,7 @@ namespace WzComparerR2.Common
                 }
                 if (gifFrame.Delay == 0)
                 {
-                    gifFrame.Delay = 100;//给予默认delay
+                    gifFrame.Delay = 120;//给予默认delay
                 }
                 return gifFrame;
             }

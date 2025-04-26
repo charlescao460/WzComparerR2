@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -15,6 +16,7 @@ using System.Xml;
 using static Microsoft.Xna.Framework.MathHelper;
 using Timer = System.Timers.Timer;
 using DevComponents.AdvTree;
+using DevComponents.AdvTree.Display;
 using DevComponents.DotNetBar;
 using DevComponents.DotNetBar.Controls;
 
@@ -367,6 +369,17 @@ namespace WzComparerR2
                     aniItem.SelectedAnimationName = aniName;
                     this.cmbItemAniNames.Tooltip = aniName;
                 }
+                else if (this.pictureBoxEx1.Items[0] is FrameAnimator frameAni && this.cmbItemAniNames.SelectedItem is int selectedpage)
+                {
+                    if (frameAni.Data.Frames.Count == 1)
+                    {
+                        var png = frameAni.Data.Frames[0].Png;
+                        if (png != null && png.ActualPages > 1 && 0 <= selectedpage && selectedpage < png.ActualPages)
+                        {
+                            this.pictureBoxEx1.ShowImage(png, selectedpage);
+                        }
+                    }
+                }
             }
         }
 
@@ -572,7 +585,8 @@ namespace WzComparerR2
             if (frame.Png != null)
             {
                 var config = ImageHandlerConfig.Default;
-                string pngFileName = pictureBoxEx1.PictureName + ".png";
+                int page = frame.Page;
+                string pngFileName = pictureBoxEx1.PictureName + (frame.Png.ActualPages > 1 ? $".{page}" : null) + ".png";
 
                 if (config.AutoSaveEnabled)
                 {
@@ -591,7 +605,7 @@ namespace WzComparerR2
                     pngFileName = dlg.FileName;
                 }
 
-                using (var bmp = frame.Png.ExtractPng())
+                using (var bmp = frame.Png.ExtractPng(page))
                 {
                     bmp.Save(pngFileName, System.Drawing.Imaging.ImageFormat.Png);
                 }
@@ -851,8 +865,11 @@ namespace WzComparerR2
         private void buttonItemCloseAll_Click(object sender, EventArgs e)
         {
             advTree1.ClearAndDisposeAllNodes();
+            advTree1.ClearLayoutCellInfo();
             advTree2.ClearAndDisposeAllNodes();
+            advTree2.ClearLayoutCellInfo();
             advTree3.ClearAndDisposeAllNodes();
+            advTree3.ClearLayoutCellInfo();
             foreach (Wz_Structure wz in openedWz)
             {
                 OnWzClosing(new WzStructureEventArgs(wz));
@@ -1064,7 +1081,7 @@ namespace WzComparerR2
             switch (value)
             {
                 case Wz_Png png:
-                    return $"png {png.Width}*{png.Height} ({png.Form})";
+                    return $"png {png.Width}*{png.Height} ({(int)png.Format}{(png.Scale > 0 ? $", {png.Scale}" : null)})";
 
                 case Wz_Vector vector:
                     return $"({vector.X}, {vector.Y})";
@@ -1139,11 +1156,19 @@ namespace WzComparerR2
                     pictureBoxEx1.PictureName = GetSelectedNodeImageName();
                     pictureBoxEx1.ShowImage(png);
                     this.cmbItemAniNames.Items.Clear();
+                    if (png.ActualPages > 1)
+                    {
+                        for (int i = 0; i < png.ActualPages; i++)
+                            this.cmbItemAniNames.Items.Add(i);
+                    }
+
                     advTree3.PathSeparator = ".";
                     textBoxX1.Text = "dataLength: " + png.DataLength + " bytes\r\n" +
                         "offset: " + png.Offset + "\r\n" +
                         "size: " + png.Width + "*" + png.Height + "\r\n" +
-                        "png format: " + png.Form;
+                        "png format: " + png.Format + "(" + (int)png.Format + ")\r\n" +
+                        "scale: " + png.Scale + "(x" + png.ActualScale + ")\r\n" +
+                        "pages: " + png.Pages + "(" + png.ActualPages + ")";
                     break;
 
                 case Wz_Vector vector:
@@ -1187,6 +1212,10 @@ namespace WzComparerR2
                 case Wz_Video video:
                     textBoxX1.Text = "dataLength: " + video.Length + " bytes\r\n" +
                         "offset: " + video.Offset;
+                    var videoFrameData = this.pictureBoxEx1.LoadVideo(video);
+                    pictureBoxEx1.PictureName = GetSelectedNodeImageName();
+                    this.pictureBoxEx1.ShowAnimation(videoFrameData);
+                    this.cmbItemAniNames.Items.Clear();
                     break;
 
                 default:
@@ -1216,9 +1245,11 @@ namespace WzComparerR2
                                         this.cmbItemAniNames.Items.Clear();
                                         advTree3.PathSeparator = ".";
                                         textBoxX1.AppendText("\r\n\r\ndataLength: " + png.DataLength + " bytes\r\n" +
-                                        "offset: " + png.Offset + "\r\n" +
-                                        "size: " + png.Width + "*" + png.Height + "\r\n" +
-                                            "png format: " + png.Form);
+                                            "offset: " + png.Offset + "\r\n" +
+                                            "size: " + png.Width + "*" + png.Height + "\r\n" +
+                                            "png format: " + png.Format + "(" + (int)png.Format + ")\r\n" +
+                                            "scale: " + png.Scale + "(x" + png.ActualScale + ")\r\n" +
+                                            "pages: " + png.Pages + "(" + png.ActualPages + ")");
                                     }
                                 }
                             }
@@ -2329,6 +2360,29 @@ namespace WzComparerR2
                     }
                 }
             }
+            else if (item is Wz_Png png)
+            {
+                SaveFileDialog dlg = new SaveFileDialog();
+                dlg.Title = "保存Canvas的原始数据";
+                dlg.FileName = advTree3.SelectedNode.Text + ".bin";
+                dlg.Filter = "*.*|*.*";
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        using (var dataReader = png.UnsafeOpenRead())
+                        using (var outputFile = dlg.OpenFile())
+                        {
+                            dataReader.CopyTo(outputFile);
+                        }
+                        this.labelItemStatus.Text = "保存成功。";
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBoxEx.Show("文件保存失败。\r\n" + ex.ToString(), "提示");
+                    }
+                }
+            }
         }
 
         private void tsmi2HandleUol_Click(object sender, EventArgs e)
@@ -2678,19 +2732,19 @@ namespace WzComparerR2
             {
                 case Keys.Escape:
                     frm.Hide();
-                    break;
+                    return;
                 case Keys.Up:
                     frm.Top -= 1;
-                    break;
+                    return;
                 case Keys.Down:
                     frm.Top += 1;
-                    break;
+                    return;
                 case Keys.Left:
                     frm.Left -= 1;
-                    break;
+                    return;
                 case Keys.Right:
                     frm.Left += 1;
-                    break;
+                    return;
             }
 
             Skill skill = frm.TargetItem as Skill;
@@ -2714,6 +2768,8 @@ namespace WzComparerR2
                     case Keys.OemCloseBrackets:
                         skill.Level += this.skillInterval;
                         break;
+                    default:
+                        return;
                 }
                 frm.Refresh();
             }
@@ -3112,6 +3168,43 @@ namespace WzComparerR2
         public static Wz_Node AsWzNode(this Node node)
         {
             return (node?.Tag as WeakReference)?.Target as Wz_Node;
+        }
+
+        public static void ClearLayoutCellInfo(this AdvTree advTree)
+        {
+            var bindingPrivateField = BindingFlags.NonPublic | BindingFlags.Instance;
+            {
+                var field1 = advTree.GetType().GetField("Ֆ", bindingPrivateField);
+                var obj1 = field1.GetValue(advTree);
+                if (obj1 != null)
+                {
+                    var field2 = obj1.GetType().BaseType.GetField("ӹ", bindingPrivateField);
+                    var obj2 = field2.GetValue(obj1);
+                    if (obj2 != null)
+                    {
+                        var field3 = obj2.GetType().GetField("ܦ", bindingPrivateField);
+                        var obj3 = field3.GetValue(obj2);
+                        if (obj3 != null)
+                        {
+                            field3.SetValue(obj2, null);
+                        }
+                    }
+                }
+            }
+
+            {
+                var display = advTree.NodeDisplay as NodeTreeDisplay;
+                if (display != null)
+                {
+                    var field4 = display.GetType().GetField("☼", bindingPrivateField);
+                    var obj4 = field4.GetValue(display) as NodeCellRendererEventArgs;
+                    if (obj4 != null)
+                    {
+                        obj4.Node = null;
+                        obj4.Cell = null;
+                    }
+                }
+            }
         }
     }
     #endregion

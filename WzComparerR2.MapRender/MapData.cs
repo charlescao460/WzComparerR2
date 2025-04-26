@@ -16,6 +16,9 @@ namespace WzComparerR2.MapRender
 {
     public class MapData
     {
+        private static readonly string SelfAssemblyName =
+            System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+
         public MapData(IRandom random)
         {
             this.Scene = new MapScene();
@@ -720,6 +723,10 @@ namespace WzComparerR2.MapRender
                     break;
 
                 case LifeItem.LifeType.Npc:
+                    if (SelfAssemblyName != "WzComparerR2")
+                    {
+                        break;
+                    }
                     path = $@"Npc\{life.ID:D7}.img";
                     var npcNode = PluginManager.FindWz(path);
 

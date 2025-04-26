@@ -160,6 +160,11 @@ namespace WzComparerR2.MapRender
 
         internal Rectangle? GetLifeBoundingBox(LifeItem life)
         {
+            if (life.Type != LifeItem.LifeType.Mob)
+            {
+                return null;
+            }
+
             if (life.View.Animator is StateMachineAnimator animator)
             {
                 try
@@ -173,7 +178,7 @@ namespace WzComparerR2.MapRender
                     var frame = dict[currentState].Frames[currentFrame];
                     var raw = frame.BoundingBox.Value;
                     return new Rectangle(life.X - (raw.Width / 2),
-                        life.Cy - raw.Height + Math.Abs(life.Cy - life.Y),
+                        life.Cy - raw.Height,
                         raw.Width,
                         raw.Height);
                 }

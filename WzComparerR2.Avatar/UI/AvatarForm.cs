@@ -935,7 +935,7 @@ namespace WzComparerR2.Avatar.UI
             if (this.avatar.Parts.All(part => part == null) 
                 || MessageBoxEx.Show("初始化为男性角色？", "提示") == DialogResult.OK)
             {
-                LoadCode("2000,12000,20000,30000,1040036,1060026", 0);
+                LoadCode("2000,12003,20000,30000,1040036,1060026", 0);
             }
         }
 
@@ -944,7 +944,7 @@ namespace WzComparerR2.Avatar.UI
             if (this.avatar.Parts.All(part => part == null)
                 || MessageBoxEx.Show("初始化为女性角色？", "提示") == DialogResult.OK)
             {
-                LoadCode("2000,12000,21000,31000,1041046,1061039", 0);
+                LoadCode("2000,12003,21000,31000,1041046,1061039", 0);
             }
         }
 

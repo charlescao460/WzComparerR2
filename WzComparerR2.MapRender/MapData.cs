@@ -7,6 +7,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using WzComparerR2.WzLib;
 using WzComparerR2.Common;
+using WzComparerR2.MapRender.Effects;
 using WzComparerR2.MapRender.Patches2;
 using WzComparerR2.PluginBase;
 using WzComparerR2.Animation;
@@ -670,7 +671,8 @@ namespace WzComparerR2.MapRender
             var aniItem = resLoader.LoadAnimationData(path);
             obj.View = new ObjItem.ItemView()
             {
-                Animator = CreateAnimator(aniItem, obj.SpineAni)
+                Animator = CreateAnimator(aniItem, obj.SpineAni),
+                Flip = obj.Flip
             };
         }
 
@@ -990,6 +992,14 @@ namespace WzComparerR2.MapRender
                         spineAni.SelectedAnimationName = aniName;
                     }
                     return spineAni;
+
+                case MsCustomSpriteData msSpriteData:
+                    var defaultTexture = msSpriteData.Textures[0].Texture;
+                    return new MsCustomSprite()
+                    {
+                        Size = new Vector2(defaultTexture.Width, defaultTexture.Height),
+                        Material = ShaderMaterialFactory.Create(msSpriteData),
+                    };
 
                 default:
                     return null;

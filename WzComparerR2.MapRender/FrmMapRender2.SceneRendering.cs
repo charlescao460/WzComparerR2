@@ -10,6 +10,7 @@ using WzComparerR2.Animation;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using WzComparerR2.Controls;
+using WzComparerR2.MapRender.Effects;
 
 namespace WzComparerR2.MapRender
 {
@@ -308,8 +309,9 @@ namespace WzComparerR2.MapRender
             }
 
             allItems.Clear();
-            var origin = this.renderEnv.Camera.Origin.ToPoint();
-            this.batcher.Begin(Matrix.CreateTranslation(new Vector3(-origin.X, -origin.Y, 0)));
+            var camera = this.renderEnv.Camera;
+            var origin = camera.Origin;
+            this.batcher.Begin(origin, (float)(gameTime.TotalGameTime.TotalSeconds % 1000));
             Rectangle[] rects = null;
             //绘制场景
             foreach (var kv in GetDrawableItems(this.mapData.Scene))
@@ -331,8 +333,8 @@ namespace WzComparerR2.MapRender
                     {
                         for (int i = 0; i < rectCount; i++)
                         {
-                            rects[i].X -= origin.X;
-                            rects[i].Y -= origin.Y;
+                            rects[i].X -= (int)origin.X;
+                            rects[i].Y -= (int)origin.Y;
                             allItems.Add(new ItemRect() { item = kv.Key, rect = rects[i] });
                         }
                     }
@@ -615,7 +617,7 @@ namespace WzComparerR2.MapRender
                     if (item is ObjItem obj && obj.Light && obj.View.Animator is FrameAnimator frameAni)
                     {
                         var frame = frameAni.CurrentFrame;
-                        this.lightRenderer.DrawTextureLight(frame.Texture, new Vector2(obj.X, obj.Y), frame.AtlasRect, frame.Origin.ToVector2(), obj.Flip, new Color(Color.White, frame.A0));
+                        this.lightRenderer.DrawTextureLight(frame.Texture, new Vector2(obj.X, obj.Y), frame.AtlasRect, frame.Origin.ToVector2(), obj.View.Flip, new Color(Color.White, frame.A0));
                     }
                 }
             }
@@ -813,23 +815,28 @@ namespace WzComparerR2.MapRender
             }
 
             //计算坐标
-            Point renderSize;
-            if (back.View.Animator is FrameAnimator frameAni)
+            int cx = back.Cx;
+            int cy = back.Cy;
+            if ((back.TileMode & TileMode.BothTile) != 0 && (cx == 0 || cy == 0))
             {
-                renderSize = frameAni.CurrentFrame.Rectangle.Size;
-            }
-            else if (back.View.Animator is AnimationItem aniItem)
-            {
-                var rect = aniItem.Measure();
-                renderSize = rect.Size;
-            }
-            else
-            {
-                renderSize = Point.Zero;
-            }
+                Point renderSize = Point.Zero;
+                switch (back.View.Animator)
+                {
+                    case FrameAnimator frameAni:
+                        renderSize = frameAni.Data.GetBound().Size;
+                        break;
+                    case AnimationItem aniItem:
+                        // For spine animation, we don't know how to calculate the correct cx and cy
+                        renderSize = aniItem.Measure().Size;
+                        break;
+                    case MsCustomSprite msCustomSprite:
+                        renderSize = msCustomSprite.Size.ToPoint();
+                        break;
+                }
 
-            int cx = (back.Cx == 0 ? renderSize.X : back.Cx);
-            int cy = (back.Cy == 0 ? renderSize.Y : back.Cy);
+                if (cx == 0) cx = renderSize.X;
+                if (cy == 0) cy = renderSize.Y;
+            }
 
             Vector2 tileOff = new Vector2(cx, cy);
             Vector2 position = new Vector2(back.X, back.Y);
@@ -913,7 +920,7 @@ namespace WzComparerR2.MapRender
 
         private MeshItem GetMeshObj(ObjItem obj)
         {
-            var renderObj = GetRenderObject(obj.View.Animator, flip: obj.Flip);
+            var renderObj = GetRenderObject(obj.View.Animator, flip: obj.View.Flip);
             if (renderObj == null)
             {
                 return null;
@@ -921,33 +928,14 @@ namespace WzComparerR2.MapRender
             var mesh = batcher.MeshPop();
             mesh.RenderObject = renderObj;
             mesh.Position = new Vector2(obj.X, obj.Y);
-            mesh.FlipX = obj.Flip;
             mesh.Z0 = obj.Z;
             mesh.Z1 = obj.Index;
 
             if (obj.MoveW != 0 || obj.MoveH != 0)
             {
-                double movingX = 0;
-                double movingY = 0;
-                double time = obj.View.Time / Math.PI / 1000 * 4 / obj.MoveP * 5000;
-                switch (obj.MoveType)
-                {
-                    case 0: // none
-                        break;
-                    case 1:
-                    case 2: // line
-                        movingX = obj.MoveW * Math.Cos(time);
-                        movingY = obj.MoveH * Math.Cos(time);
-                        break;
-                    case 3: // circle
-                        movingX = obj.MoveW * Math.Cos(time);
-                        movingY = obj.MoveH * Math.Sin(time);
-                        break;
-                    default:
-                        break;
-                }
-                mesh.Position += new Vector2((float)movingX, (float)movingY);
+                mesh.Position += GetMovingObjPos(obj);
             }
+            mesh.FlipX = obj.View.Flip;
 
             return mesh;
         }
@@ -1100,8 +1088,91 @@ namespace WzComparerR2.MapRender
             {
                 return smAni.Data.GetMesh();
             }
+            else if (animator is MsCustomSprite msCustomSprite)
+            {
+                this.UpdateShaderConstant(msCustomSprite.Material);
+                return msCustomSprite;
+            }
 
             return null;
+        }
+
+        private Vector2 GetMovingObjPos(ObjItem obj)
+        {
+            double movingX = 0;
+            double movingY = 0;
+            double time = obj.View.Time;
+            switch (obj.MoveType)
+            {
+                case 1:
+                case 2: // line
+                    time *= Math.PI * 2 / obj.MoveP;
+                    movingX = obj.MoveW * Math.Cos(time);
+                    movingY = obj.MoveH * Math.Cos(time);
+                    break;
+                case 3: // circle
+                    time *= Math.PI * 2 / obj.MoveP;
+                    movingX = obj.MoveW * Math.Cos(time);
+                    movingY = obj.MoveH * Math.Sin(time);
+                    break;
+
+                case 6:
+                case 7:
+                case 8:
+                    int sign = -1;
+                    double freq = (double)(obj.MoveP + obj.MoveDelay) * 2;
+                    time = time % freq;
+                    if (time >= freq / 2)
+                    {
+                        time -= freq / 2;
+                        if (obj.MoveType == 8)
+                            obj.View.Flip = !obj.Flip;
+
+                        if (obj.MoveType != 6)
+                            sign = +1;
+                    }
+                    else
+                    {
+                        if (obj.MoveType == 8)
+                            obj.View.Flip = obj.Flip;
+                    }
+
+                    movingX = (Math.Min(1, Math.Max(-1, (time - obj.MoveDelay) * -2 / obj.MoveP + 1)) * sign + 1) / 2 * obj.MoveW;
+                    movingY = (Math.Min(1, Math.Max(-1, (time - obj.MoveDelay) * -2 / obj.MoveP + 1)) * sign + 1) / 2 * obj.MoveH;
+
+                    break;
+
+                default:
+                    break;
+            }
+            return new Vector2((float)movingX, (float)movingY);
+        }
+
+        private void UpdateShaderConstant(ShaderMaterial shaderMaterial)
+        {
+            // we don't know the exact value that being used in the original client
+            switch (shaderMaterial)
+            {
+                case LightPixelShaderMaterial light:
+                    light.PlayerPos = renderEnv.Camera.CameraToWorld(renderEnv.Input.MousePosition).ToVector2();
+                    light.LightInnerRadius = 50f;
+                    light.LightOuterRadius = 200f;
+                    light.PlayerLightColor = Color.White.ToVector4();
+                    light.TopColor = Color.White.ToVector4();
+                    light.BottomColor = new Color(0.2f, 0.2f, 0.2f, 1f).ToVector4();
+                    light.MinY = 4500;
+                    light.MaxY = 19500;
+                    break;
+
+                case WaterFrontPixelShaderMaterial waterFront:
+                    waterFront.PlayerPos = renderEnv.Camera.CameraToWorld(renderEnv.Input.MousePosition).ToVector2();
+                    waterFront.Factor1 = 1f;
+                    waterFront.MinY = 4500;
+                    waterFront.MaxY = 19500;
+                    waterFront.DistNoiseCenterPos = waterFront.PlayerPos;
+                    waterFront.Factor2 = 1f;
+                    break;
+            }
         }
     }
 }

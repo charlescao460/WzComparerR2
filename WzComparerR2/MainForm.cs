@@ -153,6 +153,7 @@ namespace WzComparerR2
             tooltipQuickView.SkillRender.IgnoreEvalError = Setting.Skill.IgnoreEvalError;
             this.skillDefaultLevel = Setting.Skill.DefaultLevel;
             this.skillInterval = Setting.Skill.IntervalLevel;
+            tooltipQuickView.FamiliarRender.ShowObjectID = Setting.Gear.ShowID;
             tooltipQuickView.GearRender.ShowObjectID = Setting.Gear.ShowID;
             tooltipQuickView.GearRender.ShowSpeed = Setting.Gear.ShowWeaponSpeed;
             tooltipQuickView.GearRender.ShowLevelOrSealed = Setting.Gear.ShowLevelOrSealed;
@@ -161,6 +162,12 @@ namespace WzComparerR2
             tooltipQuickView.ItemRender.LinkRecipeInfo = Setting.Item.LinkRecipeInfo;
             tooltipQuickView.ItemRender.LinkRecipeItem = Setting.Item.LinkRecipeItem;
             tooltipQuickView.ItemRender.ShowNickTag = Setting.Item.ShowNickTag;
+            tooltipQuickView.ItemRender.ShowDamageSkin = Setting.DamageSkin.ShowDamageSkin;
+            tooltipQuickView.ItemRender.ShowDamageSkinID = Setting.DamageSkin.ShowDamageSkinID;
+            tooltipQuickView.ItemRender.UseMiniSizeDamageSkin = Setting.DamageSkin.UseMiniSize;
+            tooltipQuickView.ItemRender.AlwaysUseMseaFormatDamageSkin = Setting.DamageSkin.AlwaysUseMseaFormat;
+            tooltipQuickView.ItemRender.DisplayUnitOnSingleLine = Setting.DamageSkin.DisplayUnitOnSingleLine;
+            tooltipQuickView.ItemRender.DamageSkinNumber = Setting.DamageSkin.DamageSkinNumber;
             tooltipQuickView.RecipeRender.ShowObjectID = Setting.Recipe.ShowID;
         }
 
@@ -179,7 +186,30 @@ namespace WzComparerR2
             Wz_Structure.DefaultEncoding = enc;
             Wz_Structure.DefaultAutoDetectExtFiles = config.AutoDetectExtFiles;
             Wz_Structure.DefaultImgCheckDisabled = config.ImgCheckDisabled;
-            Wz_Structure.DefaultWzVersionVerifyMode = config.WzVersionVerifyMode;
+        }
+
+        async Task AutomaticCheckUpdate()
+        {
+            var config = WcR2Config.Default;
+            if (config.EnableAutoUpdate)
+            {
+                var updater = new Updater();
+                try
+                {
+                    await updater.QueryUpdateAsync();
+                    if (updater.UpdateAvailable)
+                    {
+                        ToastNotification.Show(this, $"检查到更新版本{updater.LatestVersionString}", 5000, eToastPosition.TopCenter);
+                        var frmUpdater = new FrmUpdater(updater);
+                        frmUpdater.LoadConfig(config);
+                        frmUpdater.ShowDialog(this);
+                    }
+                }
+                catch
+                {
+                    // ignore error
+                }
+            }
         }
 
         void CharaSimLoader_WzFileFinding(object sender, FindWzEventArgs e)
@@ -1172,7 +1202,8 @@ namespace WzComparerR2
                         "size: " + png.Width + "*" + png.Height + "\r\n" +
                         "png format: " + png.Format + "(" + (int)png.Format + ")\r\n" +
                         "scale: " + png.Scale + "(x" + png.ActualScale + ")\r\n" +
-                        "pages: " + png.Pages + "(" + png.ActualPages + ")";
+                        "pages: " + png.Pages + "(" + png.ActualPages + ")\r\n" +
+                        "unknown1: " + png.Unknown1;
                     break;
 
                 case Wz_Vector vector:
@@ -2681,13 +2712,25 @@ namespace WzComparerR2
                         return;
                     CharaSimLoader.LoadSetItemsIfEmpty();
                     CharaSimLoader.LoadExclusiveEquipsIfEmpty();
-                    var gear = Gear.CreateFromNode(image.Node, PluginManager.FindWz);
-                    obj = gear;
-                    if (gear != null)
+                    if (selectedNode.FullPathToFile.Contains("Familiar"))
                     {
-                        fileName = gear.ItemID + ".png";
+                        var familiar = Familiar.CreateFromNode(image.Node, PluginManager.FindWz);
+                        obj = familiar;
+                        if (familiar != null)
+                        {
+                            fileName = "familiar_" + familiar.FamiliarID + ".png";
+                        }
                     }
-                    break;
+                    else
+                    {
+                        var gear = Gear.CreateFromNode(image.Node, PluginManager.FindWz);
+                        obj = gear;
+                        if (gear != null)
+                        {
+                            fileName = gear.ItemID + ".png";
+                        }
+                    }
+                        break;
                 case Wz_Type.Item:
                     Wz_Node itemNode = selectedNode;
                     if (Regex.IsMatch(itemNode.FullPathToFile, @"^Item\\(Cash|Consume|Etc|Install|Cash)\\\d{4,6}.img\\\d+$"))
@@ -2854,6 +2897,14 @@ namespace WzComparerR2
                     case Keys.OemMinus:
                     case Keys.Subtract:
                         skill.Level -= 1;
+                        break;
+
+                    case Keys.PageDown:
+                        skill.PerJobIndex += 1;
+                        break;
+
+                    case Keys.PageUp:
+                        skill.PerJobIndex -= 1;
                         break;
 
                     case Keys.OemOpenBrackets:
@@ -3072,10 +3123,21 @@ namespace WzComparerR2
                     comparer.OutputPng = chkOutputPng.Checked;
                     comparer.OutputAddedImg = chkOutputAddedImg.Checked;
                     comparer.OutputRemovedImg = chkOutputRemovedImg.Checked;
-                    comparer.EnableDarkMode = chkEnableDarkMode.Checked;
                     comparer.HashPngFileName = chkHashPngFileName.Checked;
                     comparer.StateInfoChanged += new EventHandler(comparer_StateInfoChanged);
                     comparer.StateDetailChanged += new EventHandler(comparer_StateDetailChanged);
+                    comparer.ColorTable = new List<System.Drawing.Color>()
+                    {
+                        CustomCSSConfig.Default.BackgroundColor,
+                        CustomCSSConfig.Default.NormalTextColor,
+                        CustomCSSConfig.Default.ChangedBackgroundColor,
+                        CustomCSSConfig.Default.AddedBackgroundColor,
+                        CustomCSSConfig.Default.RemovedBackgroundColor,
+                        CustomCSSConfig.Default.ChangedTextColor,
+                        CustomCSSConfig.Default.AddedTextColor,
+                        CustomCSSConfig.Default.RemovedTextColor,
+                        CustomCSSConfig.Default.HyperlinkColor
+                    };
                     try
                     {
                         Wz_File fileNew = openedWz[0].wz_files[0];
@@ -3175,6 +3237,21 @@ namespace WzComparerR2
             }
         }
 
+        private void btnCustomCSS_Click(object sender, EventArgs e)
+        {
+            ConfigManager.Reload();
+            var Setting = CustomCSSConfig.Default;
+            using (FrmCustomCSS frm = new FrmCustomCSS())
+            {
+                frm.LoadConfig(Setting);
+                if (frm.ShowDialog() == DialogResult.OK)
+                {
+                    frm.SaveConfig(Setting);
+                    ConfigManager.Save();
+                }
+            }
+        }
+
         private void btnExportSkillOption_Click(object sender, EventArgs e)
         {
             FolderBrowserDialog dlg = new FolderBrowserDialog();
@@ -3231,15 +3308,9 @@ namespace WzComparerR2
 
         private void buttonItemUpdate_Click(object sender, EventArgs e)
         {
-#if NET6_0_OR_GREATER
-            Process.Start(new ProcessStartInfo
-            {
-                UseShellExecute = true,
-                FileName = "https://github.com/Kagamia/WzComparerR2/releases",
-            });
-#else
-            Process.Start("https://github.com/Kagamia/WzComparerR2/releases");
-#endif
+            var frm = new FrmUpdater();
+            frm.LoadConfig(WcR2Config.Default);
+            frm.ShowDialog();
         }
 
         private void btnItemOptions_Click(object sender, System.EventArgs e)
@@ -3258,6 +3329,11 @@ namespace WzComparerR2
         private void colorPickerPicBoxBgColor_SelectedColorChanged(object sender, EventArgs e)
         {
             this.pictureBoxEx1.BackColor = ((ColorPickerDropDown)sender).SelectedColor;
+        }
+
+        private async void MainForm_Shown(object sender, EventArgs e)
+        {
+            await this.AutomaticCheckUpdate();
         }
     }
 

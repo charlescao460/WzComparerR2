@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Configuration;
 using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Xml;
 using WzComparerR2.Patcher;
 
 namespace WzComparerR2.Config
@@ -17,7 +18,7 @@ namespace WzComparerR2.Config
             this.MainStyleColor = Color.DimGray;
             this.SortWzOnOpened = true;
             this.AutoDetectExtFiles = true;
-            this.WzVersionVerifyMode = WzLib.WzVersionVerifyMode.Fast;
+            this.EnableAutoUpdate = true;
         }
 
         /// <summary>
@@ -110,21 +111,38 @@ namespace WzComparerR2.Config
             set { this["imgCheckDisabled"] = value; }
         }
 
-        /// <summary>
-        /// 获取或设置一个值，指示读取wz是否跳过img检测。
-        /// </summary>
-        [ConfigurationProperty("wzVersionVerifyMode")]
-        public ConfigItem<WzLib.WzVersionVerifyMode> WzVersionVerifyMode
-        {
-            get { return (ConfigItem<WzLib.WzVersionVerifyMode>)this["wzVersionVerifyMode"]; }
-            set { this["wzVersionVerifyMode"] = value; }
-        }
 
         [ConfigurationProperty("patcherSettings")]
         [ConfigurationCollection(typeof(PatcherSetting), CollectionType = ConfigurationElementCollectionType.AddRemoveClearMap)]
         public PatcherSettingCollection PatcherSettings
         {
             get { return (PatcherSettingCollection)this["patcherSettings"]; }
+        }
+
+
+        /// <summary>
+        /// 获取或设置一个值，指示Release版本下是否需要自动检查更新。
+        /// </summary>
+        [ConfigurationProperty("EnableAutoUpdate")]
+        public ConfigItem<bool> EnableAutoUpdate
+        {
+            get { return (ConfigItem<bool>)this["EnableAutoUpdate"]; }
+            set { this["EnableAutoUpdate"] = value; }
+        }
+
+        private static readonly HashSet<string> obsoleteElements = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "wzVersionVerifyMode",
+        };
+
+        protected override bool OnDeserializeUnrecognizedElement(string elementName, XmlReader reader)
+        {
+            if (obsoleteElements.Contains(elementName))
+            {
+                reader.Skip();
+                return true;
+            }
+            return base.OnDeserializeUnrecognizedElement(elementName, reader);
         }
     }
 }

@@ -13,6 +13,7 @@ namespace WzComparerR2.CharaSim
         hair2 = 4,
         face2 = 5,
         hair3 = 6,
+        hair4 = 7,
 
         /// <summary>
         /// 脸饰 101
@@ -156,6 +157,10 @@ namespace WzComparerR2.CharaSim
         /// </summary>
         breathShooter = 1214,
         /// <summary>
+        /// 长剑 1215
+        /// </summary>
+        longSword = 1215,
+        /// <summary>
         /// 灵魂手铳 122
         /// </summary>
         soulShooter = 122,
@@ -175,6 +180,10 @@ namespace WzComparerR2.CharaSim
         /// 星灵权杖 1253
         /// </summary>
         celestialLight = 1253,
+        /// <summary>
+        /// 阴阳扇 1254
+        /// </summary>
+        onmyoSen = 1254,
         /// <summary>
         /// 驯兽魔法棒 1259
         /// </summary>
@@ -392,6 +401,14 @@ namespace WzComparerR2.CharaSim
         /// </summary>
         hexSeeker = 135403,
         /// <summary>
+        /// 如意宝珠 135404
+        /// </summary>
+        yeouiGem = 135404,
+        /// <summary>
+        /// 灵符 135430
+        /// </summary>
+        kannaReifu = 135430,
+        /// <summary>
         /// 手杖
         /// </summary>
         cane = 136,
@@ -496,6 +513,10 @@ namespace WzComparerR2.CharaSim
         /// 远古弓 159
         /// </summary>
         ancientBow = 159,
+        /// <summary>
+        /// Astra 172
+        /// </summary>
+        astra = 172,
         /// <summary>
         /// 拼图 168
         /// </summary>

@@ -25,6 +25,7 @@ namespace WzComparerR2.MapRender
             this.Scene = new MapScene();
             this.MiniMap = new MiniMap();
             this.Tooltips = new List<TooltipItem>();
+            this.MapEvents = new List<MapEvent>();
 
             this.random = random;
         }
@@ -50,6 +51,7 @@ namespace WzComparerR2.MapRender
 
         public MapScene Scene { get; private set; }
         public IList<TooltipItem> Tooltips { get; private set; }
+        public List<MapEvent> MapEvents { get; private set; }
 
         private readonly IRandom random;
 
@@ -145,6 +147,10 @@ namespace WzComparerR2.MapRender
             if ((node = mapImgNode.Nodes["light"]) != null)
             {
                 LoadLight(node);
+            }
+            if ((node = mapImgNode.Nodes["effect"]) != null)
+            {
+                LoadMapEvents(node);
             }
 
             //计算地图大小
@@ -525,6 +531,21 @@ namespace WzComparerR2.MapRender
             this.Light = mapLight;
         }
 
+        private void LoadMapEvents(Wz_Node effectNode)
+        {
+            foreach (var node in effectNode.Nodes)
+            {
+                var index = node.Text;
+                var type = node.FindNodeByPath("type").GetValueEx<string>(null);
+                var defaultAnimation = node.FindNodeByPath("defaultAnimation").GetValueEx<string>(null);
+                var changedAnimation = node.FindNodeByPath("changedAnimation").GetValueEx<string>(null);
+                var tags = node.FindNodeByPath("tags").GetValueEx<string>(null);
+                var item = new MapEvent(index, type, defaultAnimation, changedAnimation, tags);
+
+                this.MapEvents.Add(item);
+            }
+        }
+
         private void CalcMapSize()
         {
             if (!this.VRect.IsEmpty)
@@ -653,7 +674,7 @@ namespace WzComparerR2.MapRender
             {
                 case 0: aniDir = "back"; break;
                 case 1: aniDir = "ani"; break;
-                case 2: aniDir = "spine"; break;
+                case 2: aniDir = $"spine{back.SpineNo}"; break;
                 default: throw new Exception($"Unknown back ani value: {back.Ani}.");
             }
             string path = $@"Map\Back\{back.BS}.img\{aniDir}\{back.No}";

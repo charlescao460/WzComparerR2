@@ -190,8 +190,9 @@ namespace WzComparerR2.MapRender
                     return null;
                 }
             }
-
             return null;
+        }
+
         private void ApplyMapEvents(IEnumerable<ItemEvent> itemEvents, object animator, string defaultAniName)
         {
             if (itemEvents.Count() == 0 || animator is not ISpineAnimator)

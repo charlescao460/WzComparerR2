@@ -5,7 +5,8 @@
     <AssemblyName>WzComparerR2.LuaConsole</AssemblyName>
     <RootNamespace>WzComparerR2.LuaConsole</RootNamespace>
     <IsPublishable>false</IsPublishable>
-    <WcR2Plugin>true</WcR2Plugin>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <Import Project="$(ProjectDir)..\Build\Common.props" />
   <PropertyGroup Condition="$(DotnetEdition) == 'core'">
@@ -58,10 +59,18 @@
       <Link>Properties\CommonAssemblyInfo.cs</Link>
     </Compile>
   </ItemGroup>
-  <Target Name="PostBuildNet6" AfterTargets="PostBuildEvent" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <Exec Command="xcopy &quot;$(PkgKeraLua)\runtimes\win-x86\native\*.dll&quot; &quot;$(TargetDir)x86&quot; /I /Y" />
-    <Exec Command="xcopy &quot;$(PkgKeraLua)\runtimes\win-x64\native\*.dll&quot; &quot;$(TargetDir)x64&quot; /I /Y" />
-    <Exec Command="xcopy &quot;$(PkgKeraLua)\runtimes\win-arm64\native\*.dll&quot; &quot;$(TargetDir)ARM64&quot; /I /Y" />
-  </Target>
-  <Import Project="$(ProjectDir)..\Build\WcR2Plugin.targets" />
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Content Include="$(PkgKeraLua)\runtimes\win-x86\native\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>x86\%(Filename)%(Extension)</TargetPath>
+    </Content>
+    <Content Include="$(PkgKeraLua)\runtimes\win-x64\native\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>x64\%(Filename)%(Extension)</TargetPath>
+    </Content>
+    <Content Include="$(PkgKeraLua)\runtimes\win-arm64\native\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>ARM64\%(Filename)%(Extension)</TargetPath>
+    </Content>
+  </ItemGroup>
 </Project>

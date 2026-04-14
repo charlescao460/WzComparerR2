@@ -56,16 +56,35 @@
     <ProjectReference Include="..\WzComparerR2.Common\WzComparerR2.Common.csproj" />
     <ProjectReference Include="..\WzComparerR2.WzLib\WzComparerR2.WzLib.csproj" />
     <ProjectReference Include="..\WzComparerR2.PluginBase\WzComparerR2.PluginBase.csproj" />
-    <ProjectReference Include="..\WzComparerR2.Updater\WzComparerR2.Updater.csproj">
-      <Private>false</Private>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
     <ProjectReference Include="..\CharaSimResource\CharaSimResource.csproj" />
     <PackageReference Include="MonoGame.Framework.WindowsDX" Version="$(MonogameFrameworkVersion)" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="SharpDX" Version="$(SharpDXVersion)" />
     <PackageReference Include="ManagedBass" Version="3.1.1" />
     <PackageReference Include="System.Resources.Extensions" Version="$(SystemResourcesExtensionsVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <WzComparerBuildProject Include="..\WzComparerR2.Updater\WzComparerR2.Updater.csproj" />
+    <WzComparerBuildProject Include="..\WzComparerR2.MapRender\WzComparerR2.MapRender.csproj" />
+    <WzComparerBuildProject Include="..\WzComparerR2.LuaConsole\WzComparerR2.LuaConsole.csproj" />
+    <WzComparerBuildProject Include="..\WzComparerR2.Network\WzComparerR2.Network.csproj" />
+    <WzComparerPluginProject Include="..\WzComparerR2.Avatar\WzComparerR2.Avatar.csproj">
+      <PluginName>WzComparerR2.Avatar</PluginName>
+      <PluginOutputDir>$(MSBuildThisFileDirectory)..\WzComparerR2.Avatar\bin\$(Configuration)\$(TargetFramework)\</PluginOutputDir>
+    </WzComparerPluginProject>
+    <WzComparerPluginProject Include="..\WzComparerR2.MapRender\WzComparerR2.MapRender.csproj">
+      <PluginName>WzComparerR2.MapRender</PluginName>
+      <PluginOutputDir>$(MSBuildThisFileDirectory)..\WzComparerR2.MapRender\bin\$(Configuration)\$(TargetFramework)\</PluginOutputDir>
+    </WzComparerPluginProject>
+    <WzComparerPluginProject Include="..\WzComparerR2.LuaConsole\WzComparerR2.LuaConsole.csproj">
+      <PluginName>WzComparerR2.LuaConsole</PluginName>
+      <PluginOutputDir>$(MSBuildThisFileDirectory)..\WzComparerR2.LuaConsole\bin\$(Configuration)\$(TargetFramework)\</PluginOutputDir>
+    </WzComparerPluginProject>
+    <WzComparerPluginProject Include="..\WzComparerR2.Network\WzComparerR2.Network.csproj">
+      <PluginName>WzComparerR2.Network</PluginName>
+      <PluginOutputDir>$(MSBuildThisFileDirectory)..\WzComparerR2.Network\bin\$(Configuration)\$(TargetFramework)\</PluginOutputDir>
+    </WzComparerPluginProject>
+    <WzComparerCyclicPluginProject Include="..\WzComparerR2.Avatar\WzComparerR2.Avatar.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DevComponents.DotNetBar2">
@@ -93,9 +112,66 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <Exec Command="xcopy &quot;$(ProjectDir)..\References\x86\*&quot; &quot;$(TargetDir)Lib\x86&quot; /Y /I" />
-    <Exec Command="xcopy &quot;$(ProjectDir)..\References\x64\*&quot; &quot;$(TargetDir)Lib\x64&quot; /Y /I" />
-    <Exec Command="xcopy &quot;$(ProjectDir)..\References\ARM64\*&quot; &quot;$(TargetDir)Lib\ARM64&quot; /Y /I" />
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Content Include="..\References\x86\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>Lib\x86\%(Filename)%(Extension)</TargetPath>
+    </Content>
+    <Content Include="..\References\x64\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>Lib\x64\%(Filename)%(Extension)</TargetPath>
+    </Content>
+    <Content Include="..\References\ARM64\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>Lib\ARM64\%(Filename)%(Extension)</TargetPath>
+    </Content>
+  </ItemGroup>
+  <Target Name="BuildReferencedRuntimeProjects" BeforeTargets="PrepareForBuild">
+    <MSBuild Projects="@(WzComparerBuildProject)"
+             Targets="Build"
+             BuildInParallel="true"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+  </Target>
+  <Target Name="BuildCyclicPlugins" AfterTargets="Build">
+    <MSBuild Projects="@(WzComparerCyclicPluginProject)"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);BuildProjectReferences=false" />
+  </Target>
+  <Target Name="StagePluginOutputs" AfterTargets="Build" DependsOnTargets="BuildCyclicPlugins">
+    <PropertyGroup>
+      <_StageRootDir Condition="'$(TargetDir)' != ''">$(TargetDir)</_StageRootDir>
+      <_StageRootDir Condition="'$(_StageRootDir)' == ''">$([MSBuild]::EnsureTrailingSlash($([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))))</_StageRootDir>
+    </PropertyGroup>
+    <RemoveDir Directories="@(WzComparerPluginProject->'$(_StageRootDir)Plugin\%(PluginName)')" />
+    <ItemGroup>
+      <_AvatarPluginFiles Include="$(MSBuildThisFileDirectory)..\WzComparerR2.Avatar\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <_MapRenderPluginFiles Include="$(MSBuildThisFileDirectory)..\WzComparerR2.MapRender\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <_LuaConsolePluginFiles Include="$(MSBuildThisFileDirectory)..\WzComparerR2.LuaConsole\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <_NetworkPluginFiles Include="$(MSBuildThisFileDirectory)..\WzComparerR2.Network\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <_LuaConsoleNativeX86 Include="$(MSBuildThisFileDirectory)..\WzComparerR2.LuaConsole\bin\$(Configuration)\$(TargetFramework)\x86\**\*" />
+      <_LuaConsoleNativeX64 Include="$(MSBuildThisFileDirectory)..\WzComparerR2.LuaConsole\bin\$(Configuration)\$(TargetFramework)\x64\**\*" />
+      <_LuaConsoleNativeArm64 Include="$(MSBuildThisFileDirectory)..\WzComparerR2.LuaConsole\bin\$(Configuration)\$(TargetFramework)\ARM64\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AvatarPluginFiles)"
+          DestinationFiles="@(_AvatarPluginFiles->'$(_StageRootDir)Plugin\WzComparerR2.Avatar\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_MapRenderPluginFiles)"
+          DestinationFiles="@(_MapRenderPluginFiles->'$(_StageRootDir)Plugin\WzComparerR2.MapRender\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_LuaConsolePluginFiles)"
+          DestinationFiles="@(_LuaConsolePluginFiles->'$(_StageRootDir)Plugin\WzComparerR2.LuaConsole\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_NetworkPluginFiles)"
+          DestinationFiles="@(_NetworkPluginFiles->'$(_StageRootDir)Plugin\WzComparerR2.Network\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_LuaConsoleNativeX86)"
+          DestinationFiles="@(_LuaConsoleNativeX86->'$(_StageRootDir)Lib\x86\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_LuaConsoleNativeX64)"
+          DestinationFiles="@(_LuaConsoleNativeX64->'$(_StageRootDir)Lib\x64\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_LuaConsoleNativeArm64)"
+          DestinationFiles="@(_LuaConsoleNativeArm64->'$(_StageRootDir)Lib\ARM64\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -6,7 +6,8 @@
     <RootNamespace>WzComparerR2.MapRender</RootNamespace>
     <IsPublishable>false</IsPublishable>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
-    <WcR2Plugin>true</WcR2Plugin>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <Import Project="$(ProjectDir)..\Build\Common.props" />
   <PropertyGroup Condition="$(DotnetEdition) == 'core'">
@@ -60,7 +61,7 @@
     </Reference>
     <Reference Include="spine-monogame">
       <HintPath>..\References\spine-monogame.dll</HintPath>
-      <Private>False</Private>
+      <Private>false</Private>
     </Reference>
     <PackageReference Include="MonoGame.Framework.WindowsDX" Version="$(MonogameFrameworkVersion)" ExcludeAssets="runtime" />
     <PackageReference Include="ManagedBass" Version="3.1.1" ExcludeAssets="runtime" />
@@ -76,5 +77,4 @@
   <ItemGroup>
     <EmbeddedResource Include="Effects\Resources\Native\*" />
   </ItemGroup>
-  <Import Project="$(ProjectDir)..\Build\WcR2Plugin.targets" />
 </Project>

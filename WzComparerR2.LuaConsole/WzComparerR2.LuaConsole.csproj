@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows7.0</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows7.0</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WzComparerR2.LuaConsole</AssemblyName>
     <RootNamespace>WzComparerR2.LuaConsole</RootNamespace>

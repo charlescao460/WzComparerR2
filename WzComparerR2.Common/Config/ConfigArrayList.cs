@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
-using System.Configuration;
 
 namespace WzComparerR2.Config
 {
@@ -68,7 +69,10 @@ namespace WzComparerR2.Config
 
         public new IEnumerator<T> GetEnumerator()
         {
-            return this.OfType<ItemElement>().Select(elem => elem.Value).GetEnumerator();
+            foreach (ItemElement elem in this.OfType<ItemElement>())
+            {
+                yield return elem.Value;
+            }
         }
 
         protected override string ElementName

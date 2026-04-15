@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net8.0-windows7.0</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows7.0</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WzComparerR2</AssemblyName>
     <RootNamespace>WzComparerR2</RootNamespace>
@@ -22,10 +22,8 @@
   <PropertyGroup Condition="$(DotnetEdition) == 'framework'">
   </PropertyGroup>
   <ItemGroup Condition="$(DotnetEdition) == 'core'">
-    <!-- patching dotnetbar on net6 -->
-    <PackageReference Include="Lib.Harmony" Version="2.3.3" />
-    <!-- upgrade indirect dependency of SharpDX to prevent too many runtime libraries -->
-    <PackageReference Include="Microsoft.NETCore.App" Version="2.1.30" />
+    <!-- patching dotnetbar on modern .NET -->
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" />
   </ItemGroup>
   <ItemGroup Condition="$(DotnetEdition) == 'framework'">
     <Reference Include="System" />
@@ -56,12 +54,13 @@
     <ProjectReference Include="..\WzComparerR2.Common\WzComparerR2.Common.csproj" />
     <ProjectReference Include="..\WzComparerR2.WzLib\WzComparerR2.WzLib.csproj" />
     <ProjectReference Include="..\WzComparerR2.PluginBase\WzComparerR2.PluginBase.csproj" />
-    <ProjectReference Include="..\CharaSimResource\CharaSimResource.csproj" />
+    <ProjectReference Include="..\CharaSimResource\CharaSimResource.csproj">
+      <SetTargetFramework>TargetFramework=net8</SetTargetFramework>
+    </ProjectReference>
     <PackageReference Include="MonoGame.Framework.WindowsDX" Version="$(MonogameFrameworkVersion)" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="SharpDX" Version="$(SharpDXVersion)" />
     <PackageReference Include="ManagedBass" Version="3.1.1" />
-    <PackageReference Include="System.Resources.Extensions" Version="$(SystemResourcesExtensionsVersion)" />
   </ItemGroup>
   <ItemGroup>
     <WzComparerBuildProject Include="..\WzComparerR2.Updater\WzComparerR2.Updater.csproj" />
@@ -126,11 +125,13 @@
       <TargetPath>Lib\ARM64\%(Filename)%(Extension)</TargetPath>
     </Content>
   </ItemGroup>
-  <Target Name="BuildReferencedRuntimeProjects" BeforeTargets="PrepareForBuild">
+  <Target Name="BuildReferencedRuntimeProjects"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(BuildingSolutionFile)' != 'true' and '$(CurrentSolutionConfigurationContents)' == ''">
     <MSBuild Projects="@(WzComparerBuildProject)"
-             Targets="Build"
+             Targets="Restore;Build"
              BuildInParallel="true"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RestoreRecursive=false" />
   </Target>
   <Target Name="BuildCyclicPlugins" AfterTargets="Build">
     <MSBuild Projects="@(WzComparerCyclicPluginProject)"

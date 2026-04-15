@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows7.0</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows7.0</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WzComparerR2.MapRender</AssemblyName>
     <RootNamespace>WzComparerR2.MapRender</RootNamespace>
@@ -40,6 +40,7 @@
       <ExcludeAssets>all</ExcludeAssets>
     </ProjectReference>
     <ProjectReference Include="..\CharaSimResource\CharaSimResource.csproj">
+      <SetTargetFramework>TargetFramework=net8</SetTargetFramework>
       <Private>false</Private>
       <ExcludeAssets>all</ExcludeAssets>
     </ProjectReference>
@@ -67,7 +68,6 @@
     <PackageReference Include="ManagedBass" Version="3.1.1" ExcludeAssets="runtime" />
     <PackageReference Include="SharpDX" Version="$(SharpDXVersion)" ExcludeAssets="runtime" />
     <PackageReference Include="SharpDX.RawInput" Version="$(SharpDXVersion)" NoWarn="NU1701" />
-    <PackageReference Include="System.Resources.Extensions" Version="$(SystemResourcesExtensionsVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
   <ItemGroup Condition="Exists('..\Build\CommonAssemblyInfo.cs')">
     <Compile Include="..\Build\CommonAssemblyInfo.cs">

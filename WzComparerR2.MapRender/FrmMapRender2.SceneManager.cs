@@ -532,29 +532,41 @@ namespace WzComparerR2.MapRender
             var gameTime = cm.GameTime;
             var mapData = this.mapData;
 
-            if (this.IsActive)
+            if (!UseHeadlessMode)
             {
-                this.renderEnv.Input.Update(gameTime);
-                this.ui.UpdateInput(gameTime.ElapsedGameTime.TotalMilliseconds);
+                if (this.IsActive)
+                {
+                    this.renderEnv.Input.Update(gameTime);
+                    this.ui.UpdateInput(gameTime.ElapsedGameTime.TotalMilliseconds);
+                }
+
+                //需要手动更新数据部分
+                this.renderEnv.Camera.AdjustToWorldRect();
+                {
+                    var rect = this.renderEnv.Camera.ClipRect;
+                    this.ui.Minimap.CameraViewPort = new EmptyKeys.UserInterface.Rect(rect.X, rect.Y, rect.Width, rect.Height);
+                }
+                //更新topbar
+                UpdateTopBar();
+                //更新ui
+                this.ui.UpdateLayout(gameTime.ElapsedGameTime.TotalMilliseconds);
+            }
+            else
+            {
+                this.renderEnv.Camera.AdjustToWorldRect();
             }
 
-            //需要手动更新数据部分
-            this.renderEnv.Camera.AdjustToWorldRect();
-            {
-                var rect = this.renderEnv.Camera.ClipRect;
-                this.ui.Minimap.CameraViewPort = new EmptyKeys.UserInterface.Rect(rect.X, rect.Y, rect.Width, rect.Height);
-            }
-            //更新topbar
-            UpdateTopBar();
-            //更新ui
-            this.ui.UpdateLayout(gameTime.ElapsedGameTime.TotalMilliseconds);
             //更新场景
             if (mapData != null)
             {
                 UpdateAllItems(mapData.Scene, gameTime.ElapsedGameTime);
             }
-            //更新tooltip
-            UpdateTooltip();
+
+            if (!UseHeadlessMode)
+            {
+                //更新tooltip
+                UpdateTooltip();
+            }
         }
 
         protected void MoveToPortal(int? toMap, string pName, string fromPName = null, bool isBack = false)

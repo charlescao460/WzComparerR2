@@ -29,6 +29,10 @@ namespace WzComparerR2.MapRender
 {
     public partial class FrmMapRender2 : Game
     {
+        public static bool UseNullInputDevice { get; set; }
+
+        public static bool UseHeadlessMode { get; set; }
+
         public FrmMapRender2()
         {
             graphics = new GraphicsDeviceManager(this);
@@ -104,13 +108,17 @@ namespace WzComparerR2.MapRender
 
         private void Graphics_DeviceCreated(object sender, EventArgs e)
         {
-            this.engine = new WcR2Engine(this.GraphicsDevice,
-                graphics.PreferredBackBufferWidth,
-                graphics.PreferredBackBufferHeight);
+            lock (WcR2Engine.SyncRoot)
+            {
+                this.engine = new WcR2Engine(this.GraphicsDevice,
+                    graphics.PreferredBackBufferWidth,
+                    graphics.PreferredBackBufferHeight);
 
-            WcR2Engine.FixEKBugs();
+                WcR2Engine.Activate(this.engine);
+                WcR2Engine.FixEKBugs();
 
-            (this.engine.AssetManager as WcR2AssetManager).DefaultContentManager = this.Content as WcR2ContentManager;
+                (this.engine.AssetManager as WcR2AssetManager).DefaultContentManager = this.Content as WcR2ContentManager;
+            }
         }
 
         private void Graphics_DeviceResetting(object sender, EventArgs e)
@@ -911,10 +919,14 @@ namespace WzComparerR2.MapRender
 
         protected override void LoadContent()
         {
-            base.LoadContent();
-            this.ui.LoadContent(this.Content);
-            this.renderEnv.Fonts.LoadContent(this.Content);
-            this.isUnloaded = false;
+            lock (WcR2Engine.SyncRoot)
+            {
+                WcR2Engine.Activate(this.engine);
+                base.LoadContent();
+                this.ui.LoadContent(this.Content);
+                this.renderEnv.Fonts.LoadContent(this.Content);
+                this.isUnloaded = false;
+            }
         }
 
         protected override void Update(GameTime gameTime)
@@ -1225,8 +1237,11 @@ namespace WzComparerR2.MapRender
             this.ui?.InputBindings.Clear();
 
             GameExt.RemoveKeyboardEvent(this);
-            GameExt.RemoveMouseStateCache();
-            WcR2Engine.Unload();
+            lock (WcR2Engine.SyncRoot)
+            {
+                GameExt.RemoveMouseStateCache();
+                WcR2Engine.Unload();
+            }
             ServiceManager.Instance.RemoveService<IMEHandler>();
             this.isExiting = true;
         }

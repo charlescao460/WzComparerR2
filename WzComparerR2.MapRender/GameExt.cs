@@ -15,16 +15,21 @@ namespace WzComparerR2.MapRender
 {
     static class GameExt
     {
+        private static readonly object SyncRoot = new object();
+
         public static void FixKeyboard(Game game)
         {
-            IntPtr hWnd = game.Window.Handle;
-            Device.RegisterDevice(UsagePage.Generic, UsageId.GenericKeyboard, DeviceFlags.None, hWnd, RegisterDeviceOptions.Default);
-            
-            if(!filterCache.ContainsKey(hWnd))
+            lock (SyncRoot)
             {
-                var filter = new RawInputMessageFilter();
-                filterCache[hWnd] = filter;
-                MessageFilterHook.AddMessageFilter(hWnd, filter);
+                IntPtr hWnd = game.Window.Handle;
+                Device.RegisterDevice(UsagePage.Generic, UsageId.GenericKeyboard, DeviceFlags.None, hWnd, RegisterDeviceOptions.Default);
+
+                if (!filterCache.ContainsKey(hWnd))
+                {
+                    var filter = new RawInputMessageFilter();
+                    filterCache[hWnd] = filter;
+                    MessageFilterHook.AddMessageFilter(hWnd, filter);
+                }
             }
         }
 
@@ -36,13 +41,16 @@ namespace WzComparerR2.MapRender
                 return;
             }
 
-            RawInputMessageFilter filter;
-            IntPtr hWnd = game.Window.Handle;
-
-            if (filterCache.TryGetValue(hWnd, out filter))
+            lock (SyncRoot)
             {
-                MessageFilterHook.RemoveMessageFilter(hWnd, filter);
-                filterCache.Remove(hWnd);
+                RawInputMessageFilter filter;
+                IntPtr hWnd = game.Window.Handle;
+
+                if (filterCache.TryGetValue(hWnd, out filter))
+                {
+                    MessageFilterHook.RemoveMessageFilter(hWnd, filter);
+                    filterCache.Remove(hWnd);
+                }
             }
         }
 
@@ -52,35 +60,41 @@ namespace WzComparerR2.MapRender
             {
                 return;
             }
-            var fieldInfo = typeof(Device).GetField("KeyboardInput", BindingFlags.Static | BindingFlags.NonPublic);
-            var value = (EventHandler<KeyboardInputEventArgs>)fieldInfo.GetValue(null);
-            var methodInfo = game.Window.GetType().GetMethod("OnRawKeyEvent", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (value != null)
+            lock (SyncRoot)
             {
-                var fn = (EventHandler<KeyboardInputEventArgs>)Delegate.CreateDelegate(typeof(EventHandler<KeyboardInputEventArgs>), game.Window, methodInfo);
-                value -= fn;
-                fieldInfo.SetValue(null, value);
+                var fieldInfo = typeof(Device).GetField("KeyboardInput", BindingFlags.Static | BindingFlags.NonPublic);
+                var value = (EventHandler<KeyboardInputEventArgs>)fieldInfo.GetValue(null);
+                var methodInfo = game.Window.GetType().GetMethod("OnRawKeyEvent", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (value != null)
+                {
+                    var fn = (EventHandler<KeyboardInputEventArgs>)Delegate.CreateDelegate(typeof(EventHandler<KeyboardInputEventArgs>), game.Window, methodInfo);
+                    value -= fn;
+                    fieldInfo.SetValue(null, value);
+                }
             }
         }
 
         public static void RemoveMouseStateCache()
         {
-            var fieldInfo = typeof(Microsoft.Xna.Framework.Input.Mouse).GetField("PrimaryWindow", BindingFlags.Static | BindingFlags.NonPublic);
-            if (fieldInfo != null)
+            lock (SyncRoot)
             {
-                fieldInfo.SetValue(null, null);
-            }
+                var fieldInfo = typeof(Microsoft.Xna.Framework.Input.Mouse).GetField("PrimaryWindow", BindingFlags.Static | BindingFlags.NonPublic);
+                if (fieldInfo != null)
+                {
+                    fieldInfo.SetValue(null, null);
+                }
 
-            fieldInfo = typeof(Microsoft.Xna.Framework.Input.Mouse).GetField("Window", BindingFlags.Static | BindingFlags.NonPublic);
-            if (fieldInfo != null)
-            {
-                fieldInfo.SetValue(null, null);
-            }
+                fieldInfo = typeof(Microsoft.Xna.Framework.Input.Mouse).GetField("Window", BindingFlags.Static | BindingFlags.NonPublic);
+                if (fieldInfo != null)
+                {
+                    fieldInfo.SetValue(null, null);
+                }
 
-            fieldInfo = typeof(Microsoft.Xna.Framework.Input.Touch.TouchPanel).GetField("PrimaryWindow", BindingFlags.Static | BindingFlags.NonPublic);
-            if (fieldInfo != null)
-            {
-                fieldInfo.SetValue(null, null);
+                fieldInfo = typeof(Microsoft.Xna.Framework.Input.Touch.TouchPanel).GetField("PrimaryWindow", BindingFlags.Static | BindingFlags.NonPublic);
+                if (fieldInfo != null)
+                {
+                    fieldInfo.SetValue(null, null);
+                }
             }
         }
 

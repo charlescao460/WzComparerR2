@@ -24,12 +24,14 @@ namespace WzComparerR2.MapRender.UI
     #region Engine
     class WcR2Engine : Engine
     {
+        internal static readonly object SyncRoot = new object();
+
         public WcR2Engine(GraphicsDevice graphicsDevice, int nativeScreenWidth, int nativeScreenHeight)
         {
             _renderer = new WcR2Renderer(graphicsDevice, nativeScreenWidth, nativeScreenHeight);
             _assetManager = new WcR2AssetManager();
             _audioDevice = new WcR2AudioDevice();
-            _inputDevice = new MonoGameInputDevice();
+            _inputDevice = FrmMapRender2.UseNullInputDevice ? new NullInputDevice() : new MonoGameInputDevice();
 
             if (ServiceManager.Instance.GetService<IClipboardService>() == null)
             {
@@ -39,7 +41,7 @@ namespace WzComparerR2.MapRender.UI
 
         private WcR2AssetManager _assetManager;
         private WcR2AudioDevice _audioDevice;
-        private MonoGameInputDevice _inputDevice;
+        private InputDeviceBase _inputDevice;
         private WcR2Renderer _renderer;
 
         public override AssetManager AssetManager
@@ -64,31 +66,42 @@ namespace WzComparerR2.MapRender.UI
 
         public static void FixEKBugs()
         {
-            InitialInputManager();
-            FixBorderTexture();
-            FixDefaultTheme();
+            lock (SyncRoot)
+            {
+                InitialInputManager();
+                FixBorderTexture();
+                FixDefaultTheme();
+            }
+        }
+
+        internal static void Activate(WcR2Engine engine)
+        {
+            Engine.instance = engine;
         }
 
         public static void Unload()
         {
-            if (Engine.instance?.InputDevice?.KeyboardState != null)
+            lock (SyncRoot)
             {
-                InputManager.Current.ClearFocus();
-                Engine.instance = null;
+                if (Engine.instance != null)
+                {
+                    InputManager.Current?.ClearFocus();
+                    Engine.instance = null;
 
-                FieldInfo inputManagerCurrentField = typeof(InputManager)
-                    .GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-                    .FirstOrDefault(field => field.FieldType == typeof(InputManager));
-                inputManagerCurrentField.SetValue(null, (InputManager)null);
+                    FieldInfo inputManagerCurrentField = typeof(InputManager)
+                        .GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+                        .FirstOrDefault(field => field.FieldType == typeof(InputManager));
+                    inputManagerCurrentField?.SetValue(null, (InputManager)null);
+                }
+
+                VisualTreeHelper.Instance.ClearParentCache();
+                typeof(MessageBox).GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+                    .FirstOrDefault(field => field.FieldType == typeof(MessageBox))
+                    .SetValue(null, Activator.CreateInstance(typeof(MessageBox), true));
+                typeof(DragDrop).GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+                    .FirstOrDefault(field => field.FieldType == typeof(DragDrop))
+                    .SetValue(null, Activator.CreateInstance(typeof(DragDrop), true));
             }
-          
-            VisualTreeHelper.Instance.ClearParentCache();
-            typeof(MessageBox).GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-                .FirstOrDefault(field => field.FieldType == typeof(MessageBox))
-                .SetValue(null, Activator.CreateInstance(typeof(MessageBox), true));
-            typeof(DragDrop).GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-                .FirstOrDefault(field => field.FieldType == typeof(DragDrop))
-                .SetValue(null, Activator.CreateInstance(typeof(DragDrop), true));
         }
 
         public static void InitialInputManager()

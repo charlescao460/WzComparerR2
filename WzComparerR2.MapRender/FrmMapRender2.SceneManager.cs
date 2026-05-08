@@ -36,8 +36,9 @@ namespace WzComparerR2.MapRender
 
         public void LoadMap(Wz_Image mapImg)
         {
-            if (this.sceneManagerState == SceneManagerState.Starting || this.sceneManagerState == SceneManagerState.Running)
+            if (this.sceneManagerState != SceneManagerState.Loading)
             {
+                this._isSceneRunning = false;
                 this.mapImgLoading = mapImg;
             }
         }
@@ -84,6 +85,7 @@ namespace WzComparerR2.MapRender
         private IE OnMapLoading()
         {
             this.sceneManagerState = SceneManagerState.Loading;
+            this._isSceneRunning = false;
 
             var loadMapTask = this.LoadMap();
             yield return new WaitTaskCompletedCoroutine(loadMapTask);
@@ -488,6 +490,7 @@ namespace WzComparerR2.MapRender
         private IE OnSceneExit()
         {
             this.sceneManagerState = SceneManagerState.Exiting;
+            this._isSceneRunning = false;
 
             //场景渐出
             this.opacity = 1;
